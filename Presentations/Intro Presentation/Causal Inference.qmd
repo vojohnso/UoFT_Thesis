@@ -1,0 +1,393 @@
+
+---
+title: "A Brief Stint into Causal Inference"
+author: "Johnson Vo"
+date: today
+format:
+  revealjs:
+    theme: [default, custom.scss]
+    slide-number: true
+    chalkboard: true
+    footer: 'Reich et al. (2021) & Zou et al. (2025)'
+    preview-links: auto
+    css: styles.css
+---
+
+## What is Causal Inference?
+
+- Most research questions in research seek to find causal solutions
+- Standard statistical analyses primarily infers associations rather than causality
+- In many cases association does not imply causation
+- RCTs are the gold standard - but are expensive and often not possible 
+- **Observational data** is abundant and inexpensive
+- Treatment and control groups differ in ways that affect the outcomes
+
+## Potential Outcome Framework {.smaller}
+
+- For each unit $i$, define potential outcomes under each treatment:
+- $Y_i(1)$: outcome if treated ($A_i = 1$)
+- $Y_i(0)$: outcome if untreated ($A_i = 0$)
+
+**We only observe one potential outcome**
+
+- If $A_i = 1$, we observe $Y_i(1)$ but $Y_i(0)$ is **counterfactual**
+- If $A_i = 0$, we observe $Y_i(0)$ but $Y_i(1)$ is **counterfactual**
+
+**Average Treatment Effect (ATE):** 
+$\text{ATE} = E[Y(1) - Y(0)] = E[Y(1)] - E[Y(0)]$
+
+---
+
+## Key Assumptions Needed 
+
+1. **SUTVA** (Stable Unit Treatment Value Assumption)
+2. **Consistency:** $Y = Y(A)$ 
+3. **Ignorability/Exchangeability:** The potential outcomes are independent of treatment assignment given confounders: $Y(a) \perp\!\!\!\perp A \mid X$
+4. **Positivity:** $0 < P(A=1|X) < 1$ and $0 < P(A=0|X) < 1$
+
+---
+
+## The Role of Confounding {.smaller}
+
+**Confounder X:**
+
+- Affects treatment assignment $A$
+- Affects outcome $Y$  
+- Creates spurious association
+
+**Bias:**
+$\begin{align}
+&E[Y|A=1] - E[Y|A=0]\\
+&= \underbrace{E[Y(1)] - E[Y(0)]}_{\text{Causal effect}} + \underbrace{\text{Confounding bias}}_{\neq 0}
+\end{align}$
+
+- Under ignorability, the observed distribution of the outcome in treatment arm $A=a$ equals the distribution of the potential outcome $Y(a)$
+- Treatment assignment is randomized! 
+- Rules out any confounders
+
+---
+
+## The Core Problem: Unmeasured Confounding
+
+- Unmeasured confounding **violates the strongly ignorable treatment assignment assumption** and leads to **biased causal effect estimates**
+- **The Problem:** When unmeasured confounder $U$ exists:
+$U$ is **unobserved** → standard methods produce biased estimates
+- This is an untestable assumption
+
+---
+
+## Overview {.smaller}
+
+**Two Complementary Papers:**
+
+::: {.columns}
+::: {.column width="50%"}
+### Reich et al. (2021)
+*Int Stat Rev*
+
+- **Focus:** Spatial causal inference
+- **Setting:** Environmental & epidemiological studies
+- **Key challenges:**
+  - Spatial confounding
+  - Interference/spillover
+  - Spatiotemporal extensions
+:::
+
+::: {.column width="50%"}
+### Zou et al. (2025)
+*arXiv preprint*
+
+- **Focus:** Time-varying unmeasured confounding
+- **Setting:** Longitudinal observational data
+- **Key contributions:**
+  - Bayesian sensitivity analysis
+  - Latent variable approach
+  - Sensitivity function approach
+:::
+:::
+
+::: {.notes}
+These papers address the same fundamental problem - unmeasured confounding - but in different contexts. Reich focuses on spatial/spatiotemporal data, while Zou focuses on longitudinal time-varying treatments.
+:::
+
+---
+
+## Paper 1: Spatial Causal Inference (Reich et al.) {.smaller}
+
+### Motivating Example: Air Pollution & Birth Weight
+
+**Setup:**
+
+- $Y_{ij}$: Birth weight (baby $j$ in zip code $i$)
+- $A_{ij}$: Air pollution exceeds threshold
+- $X_{ij}$: Mother's age, income, known pollutants
+- $U_i$: **Unknown pollutant** (unmeasured spatial confounder)
+
+## Spatial Challenges Beyond Standard Causal Inference {.smaller}
+
+### Three Key Complications:
+
+1. **Spatial Confounding**
+   - Treatment exhibits spatial patterns
+   - Unmeasured confounders have spatial structure
+
+2. **Violation of SUTVA via Interference**
+   - Treatment at location $i$ affects outcomes at location $j$
+   - Violates SUTVA: $Y_{ij}$ depends on $(A_{ij}, A_{-ij})$
+
+3. **Spatiotemporal Dependencies**
+   - Data evolve over space and time
+   - Temporal confounding + spatial confounding
+   - Complex correlation structures
+
+---
+
+## Methods for Spatial Confounding (Reich et al.) {.smaller}
+
+### 1. Case-Control Matching
+- Match observations **within the same region** (outcome based)
+- Ensure cases and controls are comparable with respect to confounders when estimating an exposure–outcome association
+- Differences in the same region eliminate confounder $U_i$
+- For continuous outcome: $Y_{ij} - Y_{il} = (A_{ij} - A_{il})\beta + (X_{ij} - X_{il})\gamma + \epsilon$
+
+### 2. Neighborhood Adjustments
+- Remove large-scale spatial trends
+- **SAR model:** Subtract neighborhood means
+- **Spatial smoothing:** Joint modeling of treatment & confounder
+
+---
+
+## Methods for Spatial Confounding {.smaller}
+
+### 3. Spatial Propensity Score Methods
+- Propensity scores represent the probability of treatment assignment given the covariates including $U_i$, i.e $e_{ij} = P(A_{ij}=1|X_{ij}, U_{i})$
+
+$$\begin{align}
+Y_{ij} &= A_{ij}\beta + X_{ij}\gamma + U_i + \epsilon_{ij}\\
+\text{logit}(e_{ij}) &= X_{ij}\alpha + \phi U_i + V_i 
+\end{align}$$
+
+- **Problem:** If $U_i$ is spatial and unmeasured, people in the same region have similar $U_i$ but different propensity scores
+
+--- 
+
+## Reparameterize spatial random effects {.smaller}
+
+- $Y_i = A_i\beta + X_i\gamma + u_i + \psi v_i + \epsilon_i$
+- $u_i$ = spatial variation in outcome
+- $\psi v_i$ = **shared spatial effect** from treatment model
+$\text{logit}(e_i) = X_i\alpha + v_i$
+
+where $v_i$ is a **spatial random effect**
+
+- $v_i$ captures spatial patterns in treatment
+- Nearby regions have similar $v_i$
+- Acts as proxy for unmeasured $U_i$
+- Shared spatial effect $v_i$ adjusts for unmeasured confounding
+
+---
+
+### 4. Instrumental Variables
+- Need valid IV $Z_i$ such that:
+  1. $Z_i$ associated with $A_i$
+  2. $Z_i$ not related to $U_i$
+  3. $Z_i$ affects $Y_i$ only through $A_i$
+
+- The IV confines the variation unrelated to the unmeasured confounder to the treatment variable
+
+**Example:** Traffic density as IV for air pollution
+
+## Spatiotemporal Extensions  {.smaller}
+
+### Temporal dimension adds more information 
+
+**Difference-in-Differences:**
+- Aim to quantify the treatment effect on the increase in the mean response over time
+
+$$Y_{it} = \beta_1 A_{it} + \beta_2 t + \beta_3 t \cdot A_{it} + X_{it}\gamma + U_{it} + \epsilon_{it}$$
+
+- $\beta_3$ = causal effect
+- Controls for time-invariant spatial confounding
+
+---
+
+## Spatiotemporal Extensions  {.smaller}
+**Granger Causality:**
+
+- Different framework from potential outcomes
+- Based on predictive reduction
+- $A$ Granger-causes $Y$ if:
+  $$\text{Var}(Y_t|H_t) > \text{Var}(Y_t|H_t, A_1, \ldots, A_{t-1})$$
+- Equivalent to Rubin causality under certain conditions
+
+---
+
+## Geostatistical Extensions 
+
+- Spatial location is now a continuous point, i.e geospatial coordinates on a map
+- Under no interference assumptions, many previous methods are effective
+- Adjusted propensity score matching combines propensity scores with geographic distance 
+- Regression discontinuity designs utilize a spatial threshold for treatments
+
+
+## Paper 2: Time-Varying Unmeasured Confounding (Zou et al.) {.smaller}
+
+### Longitudinal Data Framework
+
+**Data structure:** $\{X_{i1}, A_{i1}, \ldots, X_{iJ}, A_{iJ}, Y_i\}_{i=1}^n$
+
+- $X_j$: Measured confounders at visit $j$
+- $A_j \in \{0,1\}$: Treatment at visit $j$  
+- $U_j$: **Time-varying unmeasured confounder**
+- $Y$: End-of-study outcome
+
+**Sequential Latent Ignorability:**
+$$Y(a) \perp\!\!\!\perp A_j \mid \bar{A}_{j-1}, \bar{X}_j, \bar{U}_j$$
+
+Without conditioning on $U$, we have **unidentifiable bias**
+
+---
+
+## Zou et al.: Two Bayesian Approaches {.smaller}
+
+::: {.columns}
+::: {.column width="50%"}
+### 1. Latent Variable Approach
+
+**Idea:** Model $U$ explicitly with bias parameters
+
+**Bias parameters:** $\lambda = \{\alpha_U, \gamma_U, \tau_U, \beta_U\}$
+
+**Prior specification:**
+
+- Uniform priors: $\beta_U \sim \text{Uniform}(-2, 2)$
+- Expert knowledge / external data
+- Vague when uncertain
+:::
+
+::: {.column width="50%"}
+### 2. Sensitivity Function Approach
+
+**Idea:** Directly characterize bias without modeling $U$
+
+**Sensitivity function:**
+$$c(j, a_J, x_J) = E[Y(a)|A_j=a_j, X_j=x_j] \\- E[Y(a)|A_j=1-a_j, \bar{A}_{j-1}=\bar{a}_{j-1}, X_j=x_j]$$
+
+When ignorability holds: $c(\cdot) = 0$
+
+Derive bias-corrected outcome
+:::
+:::
+
+---
+
+## Bayesian Latent Variable Approach: Details {.smaller}
+
+**Joint likelihood** (marginalizing over $U$):
+$$P(O|\Lambda) = \prod_{i=1}^n \sum_{u_{i1}=0}^1 \cdots \sum_{u_{iJ}=0}^1 P(Y_i|A_i, X_i, U_i, \beta) \prod_{j=1}^J P(A_{ij}|\cdot, \alpha_j)P(U_{ij}|\cdot, \tau_j)P(X_{ij}|\cdot, \gamma_j)$$
+
+. . .
+
+1. Specify priors for bias parameters (and other parameters)
+2. Run MCMC to get posterior $f(\Lambda|O)$
+3. For each posterior draw $\Lambda^{(s)}$:
+   - Predict $U^{(s)}$ at each visit
+   - Compute $E[Y_i(a)|\Lambda^{(s)}]$ via g-formula
+   - Average over subjects
+4. APO posterior: $E[Y(a)|O] = \int E[Y(a)|\Lambda]f(\Lambda|O)d\Lambda$
+
+. . .
+
+---
+
+## Sensitivity Function Approach: Details {.smaller}
+
+**Bias decomposition:**
+$$E[Y(a)] = E[Y|A=a] - \underbrace{\int \sum_{j=1}^J c(j,a_J,x_J)P(1-a_j|\bar{a}_{j-1}, x_j) \prod P(x_j|\cdot)dx}_{\text{Bias from unmeasured confounding}}$$
+
+. . .
+
+**Implementation with Bayesian MSM:**
+
+1. **Estimate sensitivity function** (several options):
+   - Subject-matter expertise
+   - Bounded by outcome range
+   - From residual variance of conditional model
+   
+2. **Compute bias-corrected outcome:**
+
+3. **Bayesian MSM** on $Y^{SF}$ via importance sampling & Bayesian bootstrap
+
+---
+
+## Zou et al.: Simulation Results {.smaller}
+
+**Scenarios tested:**
+
+
+::: {.columns}
+::: {.column width="60%"}
+**Key Findings:**
+
+| Method | Time-varying $U$ | Multiple $U$s |
+|--------|-----------------|---------------|
+| MSM (no adjustment) | High bias | High bias |
+| BSA time-invariant $U$ | Moderate bias | **Poor** |
+| BSA time-varying $U$ | **Good** | **Good** |
+| Sensitivity Function | **Excellent*** | **Excellent*** |
+
+*Used true sensitivity function in simulations
+:::
+
+::: {.column width="40%"}
+**Recommendations:**
+
+✓ Use **BSA time-varying $U$** for longitudinal data
+
+✓ **Sensitivity function** can handle complex confounding
+
+✗ Avoid BSA time-invariant when confounding varies over time
+:::
+:::
+
+---
+
+### Practical steps:
+
+1. Draw DAG with suspected $U$
+2. Justify ignorability or specify bias
+3. Conduct sensitivity analysis
+4. Report range of estimates under plausible scenarios
+
+---
+
+## Open Questions & Future Directions {.smaller}
+
+**From Reich et al.:**
+
+- Relax parametric assumptions (non-parametric spatial methods)
+- Quantile/extreme value spatial causal inference
+- Spatially varying treatment effects
+- Optimal spatial treatment allocation
+- Change of support problems
+
+. . .
+
+**From Zou et al.:**
+
+- Model misspecification robustness
+- Multiple/complex temporal patterns of $U$
+- Flexible estimation (BART, etc.)
+- Repeated outcomes (not just end-of-study)
+- Time-to-event outcomes
+
+---
+
+## References {.smaller}
+
+::: {.references}
+**Main Papers:**
+
+Reich, B.J., Yang, S., Guan, Y., Giffin, A.B., Miller, M.J., & Rappold, A. (2021). A Review of Spatial Causal Inference Methods for Environmental and Epidemiological Applications. *International Statistical Review*, 89(3), 605-634.
+
+Zou, Y., Hu, L., Ricciuto, A., Deneau, M., & Liu, K. (2025). Bayesian Sensitivity Analysis for Causal Estimation with Time-varying Unmeasured Confounding. *arXiv preprint* arXiv:2506.11322.
