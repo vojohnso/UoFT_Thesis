@@ -1,0 +1,459 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath, amssymb, booktabs, geometry, hyperref, array, xcolor}
+\geometry{margin=1in}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
+\setlength{\parskip}{0.5em}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\title{Simulation Study: Base Model and Sensitivity Scenarios\\
+\large A Bayesian Framework for Causal Inference with Error-Prone Environmental Exposures}
+\author{Johnson Vo}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Motivation}
+
+The simulation reflects the two-level structure of the application: area-level count
+health outcomes for participants nested within Forward Sortation Areas (FSA or the first
+three characters of a Canadian postal code), with area-level exposure assigned from a
+spatiotemporal prediction model.
+
+\section{Notation}
+
+\begin{itemize}
+\item $i = 1, \ldots, I$: area index (FSAs)
+\item $A_i$: latent true area-level PM$_{2.5}$ exposure, unobserved
+\item $Z_i$: observed error-prone surrogate from a spatiotemporal prediction model
+(e.g. CanOSSEM)
+\item $\mathbf{X}_i = (X_{i1}, \ldots, X_{i4})^\top$: area-level confounders affecting
+both exposure and outcome
+\item $D_i$: area-level calibration covariate explaining prediction error magnitude in
+$Z_i$ (e.g. distance to nearest monitoring station, area deprivation)
+\item $Y_i$: area-level count health outcome (number of incident depression cases)
+\item $N_i$: area population size, used as Poisson offset
+\item $\phi_i$: spatial random effect on the latent exposure surface, following the
+CAR prior in equation~\eqref{eq:car}
+\item $\mathbf{W}$: $I \times I$ binary adjacency matrix ($W_{ij} = 1$ if areas $i$ and
+$j$ share a border)
+\item $\mathbf{D}_W = \mathrm{diag}(\mathbf{W}\mathbf{1})$: diagonal degree matrix
+(number of neighbours per area)
+\item $\rho_A \in [0, 1)$: spatial correlation in the exposure CAR prior
+\item $\sigma_\phi^2$: marginal variance of the spatial random effect $\phi_i$
+\end{itemize}
+
+As in the thesis proposal, $\mathbf{X}_i$ controls confounding while $D_i$ indexes the
+measurement error mechanism. $D_i$ may overlap with $\mathbf{X}_i$ but is conceptually
+distinct.
+
+\section{Key Assumptions}
+
+The simulation satisfies the following identification assumptions from the thesis proposal.
+
+\begin{itemize}
+\item \textbf{Non-differential surrogate:} $Y_i \perp Z_i \mid A_i, \mathbf{X}_i, D_i$.
+Once we condition on the true exposure and covariates, the surrogate carries no additional
+information about the outcome. Satisfied by construction since $Y_i$ is generated from
+$A_i$ only and $Z_i$ never appears in the outcome equation.
+
+\item \textbf{Transportability:} The error relationship is assumed transportable to the
+target population. When direct calibration data are unavailable, inference about $A_i$ is
+more model-dependent; this is examined in sensitivity scenario S2.
+\end{itemize}
+
+\section{Base Model}
+\label{sec:base}
+
+\subsection{Spatial Structure and CAR Prior}
+
+Areas are arranged on a $\sqrt{I} \times \sqrt{I}$ synthetic grid with rook contiguity
+(shared edges only). $I = 200$ balances the sample sizes used by Josey et al. (2023)
+($n \in \{400, 800\}$) against the computational cost of BART.
+
+Following thesis proposal Section 4.3, spatial dependence enters \emph{only} through the
+latent exposure model via $\phi_i$. The spatial random effect follows the Conditional
+Autoregressive (CAR) prior of Besag (1974):
+\begin{equation}
+\boldsymbol{\phi} \mid \rho_A, \sigma_\phi^2 \sim \mathcal{N}\!\left(\mathbf{0},\;
+\sigma_\phi^2(\mathbf{D}_W - \rho_A\mathbf{W})^{-1}\right). \label{eq:car}
+\end{equation}
+
+\begin{itemize}
+\item $\phi_i$ is a spatially structured random effect: neighbouring areas have similar
+$\phi_i$ values, inducing correlation in their true exposures $A_i$
+\item The precision matrix $(\mathbf{D}_W - \rho_A\mathbf{W})$ is sparse with adjacent
+pairs having off-diagonal entry $-\rho_A$ and non-adjacent pairs having zero
+\item $\rho_A = 0$: areas are spatially independent;
+$\rho_A \to 1$: strong smoothing across neighbours
+\item $\sigma_\phi^2 = 0.3$ is a design choice giving moderate spatial variation in
+the exposure surface; in the application this parameter would be estimated from data
+\item Spatial correlation in the outcome is induced indirectly through $A_i$; no
+separate outcome random effect is added
+\end{itemize}
+
+\subsection{Covariates and Population Sizes}
+
+\begin{itemize}
+\item \textbf{Area confounders:} $X_{ik} \overset{\text{iid}}{\sim} \mathcal{N}(0, 1)$
+for $k = 1, 2, 3, 4$
+\item \textbf{Population sizes:} $\log(N_i) \sim \mathcal{N}(8.5, 1.2^2)$, giving
+median $\approx 4{,}900$, 5th percentile $\approx 600$, 95th percentile $\approx 40{,}000$.
+Motivated by Statistics Canada 2021 Census: Ontario has $\approx 500$ FSAs with total
+population 14,223,942, ranging from dense urban FSAs in Toronto to sparse rural FSAs in
+Northern Ontario.
+\end{itemize}
+
+\subsection{Calibration Covariate $D_i$}
+
+$D_i$ captures area characteristics that determine prediction error in $Z_i$.
+
+\paragraph{Base model: scalar $D_i$.}
+$D_i \overset{\text{iid}}{\sim} \text{Gamma}(2, 1)$ (mean 2, variance 2), representing
+distance to the nearest monitoring station.
+\begin{itemize}
+\item \textbf{Why Gamma?} Distance is strictly positive and right-skewed. Most Ontario
+FSAs are moderately close to one of the 34 NAPS stations, but some rural areas are very
+far. Shape 2 gives a unimodal distribution; Exponential (shape 1) would over-represent
+very small values.
+\item \textbf{Scientific motivation:} Gryparis et al. (2009) and Szpiro et al. (2011)
+show that kriging prediction error variance is primarily determined by distance to the
+monitor network. MELONS (Evangelopoulos et al., 2026) identified distance, deprivation,
+and housing type as empirical determinants of PM$_{2.5}$ measurement error in London, UK;
+we use their qualitative finding but not their specific values since they are not directly
+transferable to Ontario.
+\item \textbf{Ideally:} $D_i$ would be the actual Euclidean distance from each Ontario
+FSA centroid to the 34 NAPS station coordinates, replacing the Gamma assumption with an
+empirical distribution.
+\end{itemize}
+
+\paragraph{Extension: vector $D_i$.}
+In a full implementation $D_i$ would be a vector with components such as:
+$D_{i1} \sim \text{Gamma}(2,1)$ (distance to monitor),
+$D_{i2} \sim \mathcal{N}(0,1)$ (income and employment indicators as a standardised
+score), $D_{i3} \sim \text{Beta}(2,2)$ (proportion detached housing).
+The error model would be $\omega^2(\mathbf{D}_i) = \exp(\eta_0 + \eta_1 D_{i1} +
+\eta_2 D_{i3})$. Left as a future extension.
+
+\subsection{Latent True Exposure}
+
+The latent true exposure is generated from:
+\begin{equation}
+A_i \mid \mathbf{X}_i, \phi_i \sim \mathcal{N}\!\left(7 + 1.5X_{i1} - 1.5X_{i2} -
+1.5X_{i3} + 1.5X_{i4} + \phi_i,\ 9\right), \label{eq:exposure}
+\end{equation}
+with $\sigma_A = 3$, where $\phi_i$ is the spatial random effect following the CAR prior
+defined in equation~\eqref{eq:car} with parameters $(\rho_A, \sigma_\phi^2)$. The spatial
+random effect $\phi_i$ induces correlation in $A_i$ across neighbouring areas: areas with
+$\rho_A$ close to 1 have exposures that vary smoothly across the grid, reflecting a
+regional wildfire plume, while $\rho_A = 0$ gives spatially independent exposures.
+
+\begin{itemize}
+\item \textbf{Mean = 7 $\mu$g/m$^3$:} Empirical annual average PM$_{2.5}$ in Ontario
+(mean $\approx 7$, median $\approx 5.4$ $\mu$g/m$^3$)
+\item \textbf{$\sigma_A = 3$:} Reflects realistic spatial variation
+\item \textbf{Covariate coefficients $\pm 1.5$:} Provides meaningful confounding given
+the exposure distribution
+\item \textbf{Note on skewness:} Ontario PM$_{2.5}$ is heavily right-skewed (skewness
+$\approx 9.2$, 99th percentile $\approx 26.4$, extreme values $> 200$ $\mu$g/m$^3$
+during severe wildfire events). The Normal captures typical days but not extreme events.
+\end{itemize}
+
+\subsection{Measurement Error Model}
+
+Two parameterisations of the measurement error model are considered. Both generate $Z_i$
+as a function of the true exposure $A_i$ and calibration covariate $D_i$, and both
+satisfy the non-differential assumption by construction since $Z_i$ does not appear in
+the outcome equation.
+
+In both versions the measurement errors $\varepsilon_i = Z_i - \mathbb{E}[Z_i \mid A_i, D_i]$
+are assumed conditionally independent across areas given $(A_i, D_i)$. This is a
+simplifying assumption: Gryparis et al.\ (2009) show that prediction errors from spatial
+models are spatially correlated because nearby areas share the same monitoring station
+data when their surrogates are generated. Incorporating spatially correlated errors is
+listed as a potential extension in Section~\ref{sec:extensions}.
+
+\paragraph{Version A: Classical error with Di-dependent mean.}
+
+Following Wu et al.\ (2019), $D_i$ enters through the \emph{mean} of the surrogate,
+introducing systematic directional bias:
+\begin{equation}
+Z_i \mid A_i, D_i \sim \mathcal{N}(\beta_{Z1} A_i + \beta_{Z2} D_i,\ \sigma_Z^2).
+\label{eq:errorA}
+\end{equation}
+
+\begin{itemize}
+\item \textbf{$\beta_{Z1}$}: attenuation. $\beta_{Z1} = 1$ centres the surrogate on the
+truth; $\beta_{Z1} < 1$ attenuates high exposures. Wu et al.\ (2019) use $\beta_1 = 0.8$
+as their default.
+\item \textbf{$\beta_{Z2}$}: directional bias from $D_i$. When $\beta_{Z2} > 0$ the
+surrogate overestimates true exposure in high-$D_i$ areas (far from monitors), consistent
+with the MELONS finding of systematic overestimation in deprived and remote areas. When
+$\beta_{Z2} = 0$ this reduces to standard classical error.
+\item \textbf{$\sigma_Z^2$}: fixed homoscedastic noise. Heterogeneity across areas is
+captured entirely through the mean shift $\beta_{Z2} D_i$.
+\end{itemize}
+
+Wu et al.\ (2019) write this in the regression calibration direction as
+$E(X \mid W, D) = \gamma_0 + \gamma_1 W + \gamma_2^\top D$.
+
+\paragraph{Version B: Classical error with Di-dependent variance.}
+
+Alternatively, $D_i$ enters through the variance of the surrogate, relaxing the
+homoscedasticity assumption of Josey et al.\ (2023) Assumption 2:
+\begin{equation}
+Z_i \mid A_i, D_i \sim \mathcal{N}(A_i,\ \sigma_Z^2(D_i)), \qquad
+\sigma_Z^2(D_i) = \exp(\eta_0 + \eta_1 D_i). \label{eq:errorB}
+\end{equation}
+
+\begin{itemize}
+\item The surrogate is unbiased on average ($E[Z_i \mid A_i] = A_i$) but noisier in
+high-$D_i$ areas
+\item $\eta_1 = 0$ recovers Josey's homoscedastic Assumption 2 exactly
+\item $\exp(\eta_0 + \eta_1 D_i)$ ensures positivity and implies a log-linear
+(proportional) relationship: a unit increase in $D_i$ multiplies the error variance by
+$\exp(\eta_1)$, natural for distance-based quantities (Gryparis et al., 2009)
+\item Unlike Version A, there is no attenuation or directional bias; the error is
+purely a noise term whose magnitude depends on $D_i$
+\end{itemize}
+
+The two versions make different assumptions about how $D_i$ influences the measurement
+error: Version A captures directional bias (the surrogate is systematically wrong in a
+direction that depends on $D_i$) while Version B captures variance heterogeneity (the
+surrogate is unbiased but less reliable in high-$D_i$ areas). Both are scientifically
+motivated and are presented to the supervisor for a decision on which best reflects the
+CanOSSEM error structure.
+
+\subsection{Outcome Model}
+
+The area-level count outcome follows a Poisson model with a log-linear predictor and
+population offset, matching Josey et al. (2023):
+\begin{equation}
+Y_i \mid A_i, \mathbf{X}_i, N_i \sim \text{Poisson}(N_i \exp(\eta_i)),
+\label{eq:outcome}
+\end{equation}
+\begin{equation}
+\eta_i = -3 + f(A_i) - 0.5X_{i1} - 0.25X_{i2} + 0.25X_{i3} + 0.5X_{i4}.
+\end{equation}
+
+\begin{itemize}
+\item \textbf{Population offset $\log(N_i)$:} $N_i$ scales the expected count so that
+$\exp(\eta_i)$ is the event rate per person. A larger area will have more events simply
+because it has more people; the offset removes this confound. In R this enters as an
+additive term $\log(N_i)$ in the linear predictor or via the \texttt{offset} argument.
+\item \textbf{Intercept $-3$:} $\exp(-3) \approx 5\%$ baseline event rate, representing
+baseline depression incidence in the CLSA population (Raina et al., 2019)
+\item \textbf{Confounder coefficients $\pm(0.5, 0.25)$:} Follow Josey et al. (2023)
+\item \textbf{ERF $f(A_i)$:} Exposure-response function specified in sensitivity
+scenario S4; three functional forms are evaluated
+\item \textbf{No spatial random effect:} Consistent with thesis proposal Section 4.3;
+spatial correlation in outcomes is induced indirectly through the spatially correlated
+$A_i$ surface
+\end{itemize}
+
+$Z_i$ does not appear in equation~\eqref{eq:outcome}, satisfying the non-differential
+assumption by construction.
+
+\subsection{Causal Estimand}
+
+The target estimand is the average potential outcome $\mu(a) = \mathbb{E}[Y_i(a)/N_i]$
+(average event rate under intervention $A_i = a$ for all areas) and the causal contrast
+$\Delta(a_1, a_0) = \mu(a_1) - \mu(a_0)$.
+
+\begin{itemize}
+\item The true $\mu(a)$ is computed by Monte Carlo over $N_\text{ref} = 100{,}000$
+fixed covariate vectors drawn once, held constant across all replicates
+\item Evaluation grid: 201 equally spaced values covering the bulk of the $A_i$
+distribution, following Josey et al. (2023)
+\item A pre-specified pairwise contrast (e.g. $a_1 = 15$ vs $a_0 = 5$ $\mu$g/m$^3$)
+is also reported as a single summary metric
+\end{itemize}
+
+\section{Simulation Parameter Grid}
+
+\begin{table}[h!]
+\centering
+\small
+\caption{Simulation parameters.
+Version A and Version B refer to the two error model parameterisations in
+Section~\ref{sec:base}.}
+\label{tab:params}
+\begin{tabular}{L{3.5cm} L{1.5cm} L{2.8cm} L{5.4cm}}
+\toprule
+Parameter & Notation & Base / Range & Justification \\
+\midrule
+\multicolumn{4}{l}{\textit{Design}} \\
+Number of areas & $I$ & 200 & Josey uses 400--800; reduced for BART cost \\
+Replicates & $R$ & 500 & Josey et al. (2023) \\
+ERF evaluation points & & 201 & Josey et al. (2023) \\
+\midrule
+\multicolumn{4}{l}{\textit{Covariates}} \\
+Area confounders & $X_{ik}$ & $\mathcal{N}(0,1)$ & Josey et al. (2023) \\
+Population size & $\log(N_i)$ & $\mathcal{N}(8.5, 1.44)$ & Statistics Canada 2021 Census \\
+Calibration covariate & $D_i$ & Gamma$(2,1)$ & Monitor distance proxy;
+Gryparis et al. (2009) \\
+\midrule
+\multicolumn{4}{l}{\textit{True exposure}} \\
+Mean & $\mu_{A,i}$ & $7 + 1.5\mathbf{X}_i$ & Ontario PM$_{2.5}$ mean $\approx 7$
+$\mu$g/m$^3$ \\
+SD & $\sigma_A$ & 3 & Realistic spatial variation \\
+Spatial correlation & $\rho_A$ & $\{0, 0.5, 0.9\}$ & 0 = Josey; 0.9 = strong
+spatial smoothing \\
+Spatial variance & $\sigma_\phi^2$ & 0.3 & Design choice \\
+\midrule
+\multicolumn{4}{l}{\textit{Error model Version A (Classical Error)}} \\
+Attenuation & $\beta_{Z1}$ & $\{0.6, 0.8, 1.0\}$ & 1.0 = no attenuation;
+0.8 = Wu et al. (2019) \\
+Directional bias & $\beta_{Z2}$ & $\{-1, 0, 1, 2\}$ & 0 = no bias;
+$>0$ = overestimation (MELONS) \\
+Noise variance & $\sigma_Z^2$ & $\{1, 4, 9\}$ & Low/moderate/high noise \\
+\midrule
+\multicolumn{4}{l}{\textit{Error model Version B (variance heteroscedasticity)}} \\
+Baseline variance & $\eta_0$ & $\{-1, 0, 1\}$ & Error at $D_i = 0$ \\
+Di-slope & $\eta_1$ & $\{0, 0.5, 1.0, 1.5, 2.0\}$ & $\eta_1 = 0$ recovers
+Josey Assumption 2 \\
+\midrule
+\multicolumn{4}{l}{\textit{Outcome}} \\
+Intercept & & $-3$ & $\approx 5\%$ baseline event rate (CLSA) \\
+ERF & $f(A_i)$ & Linear/Quadratic/Nonlinear & See S4 \\
+Confounder coefs & $\boldsymbol{\gamma}$ & $(-0.5,-0.25, 0.25, 0.5)$ &
+Josey et al. (2023) \\
+\midrule
+\multicolumn{4}{l}{\textit{Sensitivity scenarios}} \\
+$D_i$ distribution & & Gamma$(2,0.5)$; Exp$(1)$ & Wider spread; Southern Ontario \\
+$N_i$ distribution & & Uniform$(10,1000)$ & Josey comparability \\
+Exposure distribution & & Log-normal & Extreme wildfire events \\
+Number of areas & $I$ & $\{100, 200, 400\}$ & Scaling \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Sensitivity Scenarios}
+\label{sec:sensitivity}
+
+\paragraph{S1: $D_i$ distribution.}
+\textbf{Gamma(2, 0.5)}: mean 4, more heterogeneity between areas.
+\textbf{Exponential(1)}: monotone decreasing, consistent with Southern Ontario station
+concentration.
+\textbf{Empirical}: actual FSA-to-NAPS distances from Statistics Canada shapefiles.
+
+\paragraph{S2: Error model alternatives.}
+\textbf{Version A vs Version B}: The two parameterisations in Section~\ref{sec:base} are
+compared directly to assess whether directional bias (Version A) or variance
+heteroscedasticity (Version B) better characterises CanOSSEM error structure.
+
+\paragraph{S3: Spatial correlation.}
+\textbf{Scenario B ($\rho_A = 0$)}: spatially independent exposures. Directly comparable
+to Josey et al. (2023) which sets $\phi_i = 0$ for all areas.
+\textbf{Scenario A ($\rho_A = 0.9$)}: high spatial smoothing, reflecting a sustained
+regional wildfire event where nearby FSAs share similar smoke concentrations.
+
+\paragraph{S4: Exposure-response functional forms.}
+Three forms spanning simple to complex, crossed with spatial scenarios (S3) to give six
+main simulation cells.
+
+\textbf{Linear}: $f(A_i) = 0.10(A_i - 7)$.
+Monotone increasing with no curvature. Coefficient 0.10 rescaled from Josey's 0.25 for
+the Ontario exposure scale. The workhorse of air pollution epidemiology (Pope et al.,
+2002).
+
+\textbf{Quadratic}: $f(A_i) = 0.15(A_i - 7) - 0.008(A_i - 7)^2$.
+Concave shape that rises steeply then flattens at high concentrations. Biologically
+motivated by potential saturation of health pathways at high PM$_{2.5}$.
+
+\textbf{Nonlinear (Josey cosine form)}: $f(A_i) = 0.10(A_i - 7) - 0.75\cos(\pi(A_i
+- 5)/8) - 0.25(A_i - 7)X_{i1}$.
+S-shaped curve with an exposure-covariate interaction. The interaction means the ERF
+shape differs across areas depending on $X_{i1}$, which BART can capture but parametric
+GLMs cannot. Primary misspecification stress test.
+
+\paragraph{S5: Log-normal exposure.}
+$\log(A_i) \sim \mathcal{N}(1.68, 0.54)$ matching Ontario moments: median 5.4, mean 7,
+SD 5.9. Captures extreme wildfire events (99th percentile $\approx 26$ $\mu$g/m$^3$)
+that the Normal cannot represent. ERF evaluation grid adapts to the 5th--95th percentile.
+
+\paragraph{S6: Number of areas.}
+$I \in \{100, 200, 400\}$. All must be perfect squares for the synthetic grid.
+
+\section{Performance Metrics}
+
+For each scenario and method (naive, oracle, proposed, regression calibration):
+
+\begin{itemize}
+\item \textbf{Bias}: $\hat{\mu}(a) - \mu(a)$ averaged over evaluation points and
+replicates
+\item \textbf{RMSE}: $\sqrt{R^{-1}\sum_r (\hat{\mu}_r(a) - \mu(a))^2}$
+\item \textbf{Coverage}: fraction of 95\% credible intervals containing $\mu(a)$
+\item \textbf{Interval width}: mean width of 95\% credible intervals
+\item \textbf{Causal contrast bias}: $\hat{\Delta}(a_1, a_0) - \Delta(a_1, a_0)$ for
+a pre-specified pair
+\end{itemize}
+
+Pointwise results at $a = 11$ $\mu$g/m$^3$ are also reported following Josey et al.
+(2023) Table 1.
+
+\section{Potential Extensions}
+\label{sec:extensions}
+
+\begin{itemize}
+\item \textbf{Spatially correlated measurement errors:} The current model assumes
+conditional independence of measurement errors $\varepsilon_i = Z_i -
+\mathbb{E}[Z_i \mid A_i, D_i]$ across areas which is a simplifying assumption that
+Gryparis et al.\ (2009) show is violated in practice: prediction errors from spatial
+models are correlated across nearby areas because those predictions are generated using
+the same monitoring station data. A natural extension is to give the error term its own
+spatial covariance structure, either by making $D_i$ spatially structured via a second
+CAR prior (so that nearby areas have correlated error variances), or by adding an
+explicit spatially correlated residual $\psi_i \sim \text{CAR}(\rho_\varepsilon,
+\sigma_\varepsilon^2)$ to the error model.
+
+\item \textbf{Individual-level binary outcome:} Replacing the area-level Poisson count
+with individual-level Bernoulli outcomes $Y_{ij} \sim \text{Bernoulli}(p_{ij})$ and
+individual covariates $L_{ij}$, matching the CLSA data structure. The Bayesian bootstrap
+would draw Dirichlet weights over all $N = \sum_i n_i$ individuals rather than over areas.
+
+\item \textbf{Spatial random effect on outcome ($\nu_i$)}: A second CAR prior capturing
+residual spatial clustering in health outcomes (Englert et al., 2025). Left out of the
+base model per thesis proposal Section 4.3.
+\item \textbf{Negative binomial outcome:} The Poisson model assumes
+$\text{Var}(Y_i) = \mathbb{E}[Y_i]$, which is often violated in practice when
+area-level counts are overdispersed due to unmeasured heterogeneity across FSAs. A
+negative binomial outcome relaxes this by introducing a dispersion parameter $\xi > 0$:
+\begin{equation*}
+Y_i \mid A_i, \mathbf{X}_i, N_i \sim \text{NegBin}(\mu_i, \xi), \qquad
+\mu_i = N_i \exp(\eta_i),
+\end{equation*}
+where $\mathbb{E}[Y_i] = \mu_i$ and $\text{Var}(Y_i) = \mu_i + \mu_i^2/\xi$. As
+$\xi \to \infty$ this recovers the Poisson; small $\xi$ gives strong overdispersion.
+Equivalently this arises from a Poisson-Gamma hierarchy as in Englert et al.\ (2025):
+$Y_i \mid \theta_i \sim \text{Poisson}(\theta_i)$ where $\theta_i \sim \text{Gamma}(\xi,
+\mu_i/\xi)$, marginalising over $\theta_i$ to give the NegBin. The dispersion parameter
+$\xi = 1$ is a natural starting point and is the value used by Englert et al.\ (2025) in
+their simulation. This extension tests whether the proposed method remains well-calibrated
+when the outcome model is more variable than the base Poisson.
+ 
+\item \textbf{Zero-inflated outcome}: For rare outcomes or small populations where
+structural zeros arise.
+ 
+\item \textbf{Log-normal exposure model:} The base model specifies $A_i$ on the original
+scale as a Normal with a floor at zero. An alternative motivated by the right-skewed
+nature of PM$_{2.5}$ concentrations and by the suggestion that $\log(A_i)$ should be
+regressed on covariates is to model the log-exposure directly:
+\begin{equation*}
+\log(A_i) \mid \mathbf{X}_i, \phi_i \sim \mathcal{N}\!\left(\gamma_0 + \gamma_1 X_{i1}
++ \gamma_2 X_{i2} + \gamma_3 X_{i3} + \gamma_4 X_{i4} + \phi_i,\
+\sigma_{\log A}^2\right),
+\end{equation*}
+so that $A_i = \exp(\log A_i) > 0$ always. The parameters are matched to Ontario
+PM$_{2.5}$ empirical moments: setting $\gamma_0 = 1.68$ and $\sigma_{\log A} = 0.73$
+gives $\mathbb{E}[A_i] \approx 7$ $\mu$g/m$^3$ and $\text{SD}(A_i) \approx 5.9$
+$\mu$g/m$^3$, matching the provincial monitoring data. The error model in Version A
+would then operate on the log scale as $\log(Z_i) \mid \log(A_i), D_i \sim
+\mathcal{N}(\beta_{Z1}\log(A_i) + \beta_{Z2}D_i, \sigma_Z^2)$, giving multiplicative
+error on the original scale. The causal estimand $\mu(a)$ is computed at values of $a$
+on the original scale, but the exposure-response curve is evaluated over a grid adapted
+to the 5th--95th percentile of the log-normal distribution rather than a fixed interval.
+\end{itemize}
+
+
+\end{document}
