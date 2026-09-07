@@ -197,6 +197,7 @@ bart_gcomp <- function(data, a_grid = seq(0, 100, by = 10),
   cat(sprintf("\nFitting %s model...\n", model_label))
   
   Y_train <- log(data$Yi / data$Ni)
+  # Non-negative
   Y_train[!is.finite(Y_train)] <- log(0.5 / data$Ni[!is.finite(Y_train)])
   X_train <- as.matrix(data[, c("exposure_c", "Xi1", "Xi2", "Xi3", "Xi4")])
   
