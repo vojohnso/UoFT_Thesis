@@ -5,6 +5,7 @@
 
 set.seed(1006092577)
 library(BART)
+library(rstanarm)
 
 ############################
 # Exercise 1: Standardization Practise
@@ -89,6 +90,66 @@ for(v in 1:5) {
 
 apply(psi_post, 2, quantile, c(0.025, 0.5, 0.975))
 
+############################
+# Exercise 2.1: Parametric G-Computation (AR(1))
+############################
+
+# Obtain a smooth dose-response curve E[Y(a)] across a continuous exposure range
+set.seed(1006092577)
+n <- 2000
+L <- rnorm(n, 0, 1)
+A <- runif(n, -3, 3)       # continuous exposure now 
+Y <- rnorm(n, A + 0.3*sin(2*A) + L, 0.5)
+
+# Assign 10 knots along the range of A to assign each observation to bins
+K <- 10
+A_knot <- cut(A, breaks = K, labels = FALSE)
+d <- data.frame(Y, A_knot = factor(A_knot), L)
+# Outcome model with a seperate intercept for each knot
+
+outcome_fit <- stan_glmer(Y ~ L + (1 | A_knot),,
+                          data = d,
+                          family = gaussian(), 
+                          prior_covariance = decov(scale = 0.5),
+                          chains = 4, iter = 2000, seed = 1006092577)
+
+summary(outcome_fit)
+
+# Knot centres: the midpoint of each bin
+knot_breaks <- seq(min(A), max(A), length.out = K + 1)
+knot_centres <- (knot_breaks[-1] + knot_breaks[-(K+1)]) / 2
+
+# Grid to store results: M draws x K knots
+M <- nrow(as.matrix(outcome_fit))
+theta_draws <- matrix(NA, nrow = M, ncol = K)
+# For each knot k and posterior draw m, we set everyone to bin k and take the average predictions
+# This gives a posterior draw of the dose-response curve at knot k
+# We will use the middles of each knot as the value for bin k
+
+for (k in 1:K) {
+  theta_draws[, k] <- rowMeans(posterior_epred(outcome_fit, newdata = transform(d, A_knot = as.factor(k))))
+}
+
+theta_mean <- colMeans(theta_draws)
+theta_lo <- apply(theta_draws, 2, quantile, 0.025)
+theta_hi <- apply(theta_draws, 2, quantile, 0.975)
+
+plot_df <- data.frame(
+  a = knot_centres,
+  mean = theta_mean,
+  lo = theta_lo,
+  hi = theta_hi,
+  truth = knot_centres + 0.3 * sin(2 * knot_centres)
+)
+
+ggplot(plot_df, aes(x = a)) +
+  geom_ribbon(aes(ymin = lo, ymax = hi), fill = "steelblue", alpha = 0.3) +
+  geom_line(aes(y = mean), colour = "steelblue", linewidth = 1) +
+  geom_line(aes(y = truth), colour = "red", linetype = "dashed", linewidth = 1) +
+  labs(x = "Exposure A", y = expression(theta(a)),
+       title = "Estimated vs true dose-response curve",
+       subtitle = "Blue = posterior mean + 95% CrI, Red = truth") +
+  theme_minimal()
 ############################
 # Exercise 3: Time-varying G-Computation
 ############################
@@ -548,6 +609,136 @@ ggplot(psi_comparison, aes(x = psi, fill = method)) +
 # but we observe data from a population where A depends on L (confounded)
 # Utility function as the log-likelihood of the marginal outcome model log P(Y_i | A_i)
 # Maximize the utlity function under the experimental distribution but integrate over the observed one
+# Done through a ratio - importance sampling weights that link the two distributions which reduces
+# to the stabalized IPTW weight - s_w = P(A) / P(A | L)
+# both numerator/denominator are estimated with uncertainty through Bayesian bootstrap weights
 
+# Step 1: Treatment model (likely binomial models)
+
+ps_fit <- stan_glm(
+  A ~ age + sex + race + cat1 + meanbp1 + hrt1 + resp1 + temp1 + wtkilo1,
+  data   = rhc,
+  family = binomial(link = "logit"),
+  prior  = normal(0, 2.5), chains = 4, iter = 2000, seed = 1006092577)
+
+# Step 2: Posterior draws
+ps_draws <- posterior_epred(ps_fit) # P(A = 1 | L) since for a binomial model, we model P(A = 1 | L)
+
+# Step 3: Compute posterior stablized weights
+p_treat <- mean(rhc$A) # marginal P(A=1)
+M <- nrow(ps_draws) # M x N 
+n <- ncol(ps_draws)
+treated   <- which(rhc$A == 1)
+untreated <- which(rhc$A == 0)
+
+s_w <- matrix(NA, nrow = M, ncol = n)
+s_w[, treated]   <- p_treat / ps_draws[, treated]
+s_w[, untreated] <- (1 - p_treat) / (1 - ps_draws[, untreated])
+
+# Step 4: Fit weighted outcome model per posterior weight draw
+psi_ps <- numeric(M)
+for (m in 1:M) {
+  fit <- lm(Y_death ~ A, data = rhc, weights = s_w[m, ])
+  psi_ps[m] <- coef(fit)["A"]
+}
+
+quantile(psi_ps, c(0.025, 0.5, 0.975))
+
+psi_comparison <- data.frame(
+  psi = c(psi, psi_bart, psi_ps),
+  method = rep(c("Parametric", "BART", "PS"), times = c(length(psi), length(psi_bart), length(psi_ps)))
+)
+
+ggplot(psi_comparison, aes(x = psi, fill = method)) +
+  geom_density(alpha = 0.4) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey40") +
+  scale_fill_manual(values = c("Parametric" = "tomato", "BART" = "steelblue", "PS" = "darkgreen")) +
+  labs(
+    x = expression(Psi ~ "(Risk Difference)"),
+    title = "Posterior ATE: Effect of RHC on 30-day Mortality",
+    subtitle = "Parametric vs BART g-computation",
+    fill = "Method"
+  ) +
+  theme_minimal()
+
+
+############################
+#  Sensitivity Analysis
+############################
+
+# Unmeasure confounding - U - affects both outcome and treatment (and is latent)
+# Assuming that if we condition on it that ignorability holds, Bayesian modelling treats
+# it as an unknown parameter that can be sampled jointly 
+
+# The idea is to use a grid search on different potential values of U in the exposure/treatment
+# model to see the effect of unmeasured confounding
+library(rstan)
+
+# Grid of (xi1, xi2) pairs to explore
+xi_grid <- expand.grid(
+  xi1 = c(0, 0.5, 1.0, 1.5, 2.0),
+  xi2 = c(0, 0.5, 1.0, 1.5, 2.0))
+
+stan_data_base <- list(
+  N = nrow(rhc), Y = rhc$Y_death,
+  A = rhc$A,     L = scale(rhc$age)[,1])
+
+# Fit Stan model at each grid point
+psi_grid <- lapply(1:nrow(xi_grid), function(k){
+    d <- c(stan_data_base,
+                xi1 = xi_grid$xi1[k],
+                xi2 = xi_grid$xi2[k])
+  fit <- sampling(sens_mod, data = d,
+                       chains = 2, iter = 1500,
+                       warmup = 500, seed = 42,
+                       refresh = 0)
+  psi_draws <- extract(fit, "psi")[[1]]
+  data.frame(xi1  = xi_grid$xi1[k],
+             xi2  = xi_grid$xi2[k],
+             mean = mean(psi_draws),
+             lo   = quantile(psi_draws, 0.025),
+             hi   = quantile(psi_draws, 0.975))
+}) |> dplyr::bind_rows()
+
+############################
+#  Causal Forest & CATE
+############################
+
+# CATE = conditional average treatment effect tau(x) = E[Y1 - Y0 | X = x]
+# gives the expected treatment effect for a given patient with characteristics x
+# Naive BART shrinks the effect of L and the treatment effect toward zero
+# by computing tau(x) = mu(1, x) - mu(0, x)
+# Instead we seperate these two: prognostic BART and treatment effect BART
+# E[Y | A, x] = mu(x, e(x)) + A * tau(x) where mu is the BART model for baseline outcome
+# capturing the outcome regardless of treatment and tau(x) is a seperate BART model
+# capturing the treatment effect 
+# Because the propensity score is included in the prognostic function it absorbs confounding
+
+library(bcf)
+
+covars <- c("age","sex","race","cat1",
+            "meanbp1","hrt1","resp1","temp1","wtkilo1")
+X <- model.matrix(~ ., data = rhc[, covars])[, -1]
+Y <- rhc$Y_death
+A <- rhc$A
+
+ps_hat <- fitted(ps_fit)
+
+bcf_fit <- bcf(y = Y,
+               z = A,
+               x_control = X, # enters mu(x)
+               x_moderate = X,  # enters tau(x)
+               pihat = ps_hat,
+               nburn = 500, nsim = 1000)
+# bcf_fit$tau is an n x M matrix - one row per patient, one column per posterior draw
+
+# posterior CATE 
+tau_draws <- bcf_fit$tau
+
+tau_hat <- rowMeans(tau_draws)
+tau_lo <- apply(tau_draws, 1, quantile, 0.025)
+tau_hi <- apply(tau_draws, 1, quantile, 0.975)
+
+prob_benefit <- rowMeans(tau_draws > 0)
 
 
