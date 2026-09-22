@@ -29,7 +29,7 @@ n <- 10000
 
 L <- rnorm(n, 0, 1)
 A <- rbinom(n, 1, plogis(1-0.5*L))
-Y <- rnorm(n, (L + 0.5*L^2)*A, 1/2)
+Y <- rnorm(n, 0.5*A + L, 1/2)
 TRUE_ATE = 1/2 
 
 d <- data.frame(Y = Y, A = A, L = L)
@@ -98,7 +98,7 @@ apply(psi_post, 2, quantile, c(0.025, 0.5, 0.975))
 set.seed(1006092577)
 n <- 2000
 L <- rnorm(n, 0, 1)
-A <- runif(n, -3, 3)       # continuous exposure now 
+A <- runif(n, L, 3)       # continuous exposure now 
 Y <- rnorm(n, A + 0.3*sin(2*A) + L, 0.5)
 
 # Assign 10 knots along the range of A to assign each observation to bins
@@ -202,8 +202,8 @@ post_L1 <- as.matrix(fit_L1)
 # Step 3: Simulate confounders sequentially for t in {0, ..., T}
 # Repeat this B times to obtain the average confounders L0, L1, ...
 B <- 5000
-gcomp_one_draw <- function(m, a0, a1, B = 1000) {
-  bb_w <- rdirichlet(1, rep(1, n))
+gcomp_one_draw <- function(m, a0, a1, B = 1000, bb_w = NULL) {
+  if (is.null(bb_w)) bb_w <- rdirichlet(1, rep(1, n))
   L0_sim <- sample(d$L0, B, replace = TRUE, prob = bb_w)
   
   # Simulate L1
@@ -224,7 +224,8 @@ gcomp_one_draw <- function(m, a0, a1, B = 1000) {
 # Step 4: Integrate the outcome model conditional on the current set of draws under both interventions 
 psi <- numeric(M)
 for (m in 1:M) {
-  psi[m] <- gcomp_one_draw(m, a0 = 1, a1 = 1, B) - gcomp_one_draw(m, a0 = 0, a1 = 0, B) 
+  bb_w <- rdirichlet(1, rep(1, n))
+  psi[m] <- gcomp_one_draw(m, a0 = 1, a1 = 1, B, bb_w) - gcomp_one_draw(m, a0 = 0, a1 = 0, B, bb_w) 
 }
 quantile(psi, c(0.025, 0.5, 0.975))
 sd(psi)
@@ -690,7 +691,7 @@ psi_grid <- lapply(1:nrow(xi_grid), function(k){
                 xi2 = xi_grid$xi2[k])
   fit <- sampling(sens_mod, data = d,
                        chains = 2, iter = 1500,
-                       warmup = 500, seed = 42,
+                       warmup = 500, seed = 1006092577,
                        refresh = 0)
   psi_draws <- extract(fit, "psi")[[1]]
   data.frame(xi1  = xi_grid$xi1[k],
