@@ -15,7 +15,7 @@ library(rstanarm)
 
 # L ~ N(0, 1)
 # A | L ~ Bern(sigma(1 - L/2))
-# Y | A, L ~ N((L + 1/2L^2)A, 1/4)
+# Y | A, L ~ N((L + 1/2*A, 1/4)
 # ATE = E(E(Y | A = 1, L) - E(Y | A = 0, L))
 # = E(L+ 1/2L^2)
 # = 1/2
@@ -98,7 +98,7 @@ apply(psi_post, 2, quantile, c(0.025, 0.5, 0.975))
 set.seed(1006092577)
 n <- 2000
 L <- rnorm(n, 0, 1)
-A <- runif(n, L, 3)       # continuous exposure now 
+A <- rnorm(n, L, 1)       # continuous exposure now 
 Y <- rnorm(n, A + 0.3*sin(2*A) + L, 0.5)
 
 # Assign 10 knots along the range of A to assign each observation to bins
@@ -107,7 +107,7 @@ A_knot <- cut(A, breaks = K, labels = FALSE)
 d <- data.frame(Y, A_knot = factor(A_knot), L)
 # Outcome model with a seperate intercept for each knot
 
-outcome_fit <- stan_glmer(Y ~ L + (1 | A_knot),,
+outcome_fit <- stan_glmer(Y ~ L + (1 | A_knot),
                           data = d,
                           family = gaussian(), 
                           prior_covariance = decov(scale = 0.5),
@@ -116,7 +116,7 @@ outcome_fit <- stan_glmer(Y ~ L + (1 | A_knot),,
 summary(outcome_fit)
 
 # Knot centres: the midpoint of each bin
-knot_breaks <- seq(min(A), max(A), length.out = K + 1)
+knot_breaks <- seq(min(A, na.rm = TRUE), max(A, na.rm = TRUE), length.out = K + 1)
 knot_centres <- (knot_breaks[-1] + knot_breaks[-(K+1)]) / 2
 
 # Grid to store results: M draws x K knots
