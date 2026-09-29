@@ -6,7 +6,7 @@ library(gtools)
 # ============================================================
 
 # Fits nonparametric Bayesian g-computation using BART as the outcome model.
-# Outcome modelled on log(Yi/Ni) -- the log event rate per person.
+# Outcome modelled on log(Yi/Ni) which is the log event rate per person.
 # Predictions are exponentiated to recover the rate scale: theta(a) = E[Yi(a)/Ni].
 # Bayesian bootstrap applies Dirichlet weights over areas per posterior draw,
 # with Ni as importance weights to match the weighted mean in true_erf.
@@ -30,8 +30,6 @@ bart_gcomp <- function(data,
   data$exp_c <- data$exposure - exp_mean
   a_grid_c <- a_grid - exp_mean
 
-  cat("\nFitting", model_label, "...\n")
-
   # Outcome on log rate scale: log(Yi/Ni) = eta_i without the offset
   Y_train <- log(data$Yi / data$Ni)
   Y_train[!is.finite(Y_train)] <- log(0.5 / data$Ni[!is.finite(Y_train)])
@@ -46,7 +44,7 @@ bart_gcomp <- function(data,
     X
   }))
 
-  # Fit BART -- yhat.test is ndpost x (n_grid * n) on log rate scale
+  # Fit BART: yhat.test is ndpost x (n_grid * n) on log rate scale
   bart_fit <- gbart(X_train, Y_train, x.test = X_test,
                     type = "wbart", ndpost = ndpost, nskip = nskip, printevery = 0)
 

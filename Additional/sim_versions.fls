@@ -96,6 +96,8 @@ INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/tex/latex/graphics-def/pdftex.
 INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/tex/latex/graphics/mathcolor.ltx
 INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/tex/latex/graphics/mathcolor.ltx
 INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/tex/latex/graphics/mathcolor.ltx
+INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/tex/latex/float/float.sty
+INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/tex/latex/float/float.sty
 INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def
 INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def
 INPUT ./sim_versions.aux
@@ -149,7 +151,6 @@ INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/tfm/public/cm/cmbx8.tfm
 INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/tfm/public/cm/cmbx6.tfm
 INPUT /Users/johnsonvo/Library/TinyTeX/texmf-var/fonts/map/pdftex/updmap/pdftex.map
 INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm
-INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/tfm/public/cm/cmti10.tfm
 INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/tfm/public/cm/cmmib10.tfm
 INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmmib8.tfm
 INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmmib6.tfm
@@ -193,6 +194,7 @@ INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm
 INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb
 INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb
 INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb
+INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb
 INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb
 INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb
 INPUT /Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb

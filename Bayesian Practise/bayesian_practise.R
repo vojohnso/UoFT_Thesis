@@ -6,6 +6,7 @@
 set.seed(1006092577)
 library(BART)
 library(rstanarm)
+library(rstan)
 
 ############################
 # Exercise 1: Standardization Practise
@@ -39,6 +40,13 @@ X1 <- predict(fit, newdata = transform(d, A = 1))
 X0 <- predict(fit, newdata = transform(d, A = 0))
 ATE = mean(X1 - X0)
 
+# Stan Version
+
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
+fit1 <- stan(file = "exercise_1.stan", data = list(N = n, L = L, A = A, Y = Y), chains = 4, iter = 2000)
+print(fit1, pars = c("beta0", "beta1", "beta2", "sigma", "mean_ATE"))
+# We get close to 0.5 for mean_ATE - works
 
 ############################
 # Exercise 2: Parametric Bayesian Bootstrap
@@ -64,6 +72,7 @@ Y <- rbinom(n, 1, plogis(-1 + W + (1  + eta_v[V]) * A))
 d <- data.frame(Y, A, W, V = factor(V))
 
 d <- d[order(d$V),]
+n_v <- as.vector(table(d$V))
 
 fit <- stan_glmer(Y ~ W + V + A + (0 + A | V), # random slope on treatment by stratum with no random intercept 
                   data = d,
@@ -75,7 +84,6 @@ M <- nrow(as.matrix(fit))
 p1 <- posterior_epred(fit, newdata = transform(d, A = 1))
 p0 <- posterior_epred(fit, newdata = transform(d, A = 0))
 
-n_v <- as.vector(table(d$V))
 psi_post <- matrix(NA, M, 5)
 for(v in 1:5) {
   idx <- which(d$V == v) # all participants in stratum V
@@ -85,10 +93,19 @@ for(v in 1:5) {
     m0 <- sum(bb_w * p0[m, idx])
     psi_post[m, v] <- (m1/(1-m1) / (m0/(1-m0)))
   }
-  
 }
 
 apply(psi_post, 2, quantile, c(0.025, 0.5, 0.975))
+
+# Stan Version
+
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
+fit2 <- stan(file = "exercise_2.stan",
+             data = list(N = n, K = 5, W = W, V = V, A = A, Y = Y, n_v = n_v),
+             chains = 4, iter = 2000)
+print(fit1, pars = c("beta0", "beta1", "beta2", "sigma", "mean_ATE"))
+# We get close to 0.5 for mean_ATE - works
 
 ############################
 # Exercise 2.1: Parametric G-Computation (AR(1))
@@ -476,6 +493,89 @@ psi_bart <- bayes_boot(mu_a1, mu_a0)
 quantile(psi_bart, c(0.025, 0.5, 0.975))
 
 ############################
+# STAN PRACTISE
+############################
+
+# Jags Version
+jags_model_latU <- "
+   model {
+    for (i in 1:N) {
+     # Right-censoring via interval indicator
+     is_cens[i] ~ dinterval(T[i], C[i,1])
+     # Outcome model: Weibull distribution, dweib(shape = k, rate = b[i])
+     T[i] ~ dweib(k_D, bD[i])
+     # AFT linear predictor with latent U  
+     # log(lambda_i) = eta0 + eta_x * X[i] + eta_a * A[i]  
+     muD[i] <- eta0 + eta_x1*X1[i] + eta_x2*X2[i] + eta_a*A[i] + eta_u*U[i]
+     # rate parameter b[i] = exp(-k * mu[i])
+     # log b[i] = -k * mu[i]
+     log_bD[i] <- -k_D * muD[i]
+     bD[i] <- exp(log_bD[i])
+     # ----- Treatment model
+     A[i] ~ dbern(pA[i])
+     logit(pA[i]) <- alpha0 + alpha1*X1[i] + alpha2*X2[i] + alpha3*U[i]
+     # ----- Latent U model
+     logit(pU[i]) <- gamma0 + gamma1 * X1[i] + gamma2 * X2[i]
+     U[i] ~ dbern(pU[i])
+    }
+    # ----- Priors  
+    # Event process
+    eta0  ~ dnorm(0, 0.1) #precision=0.1, variance = 10
+    eta_x1 ~ dnorm(0, 0.25) #precision=0.25, variance = 4
+    eta_x2 ~ dnorm(0, 0.25)
+    eta_a   ~ dnorm(0, 0.25)
+    #eta_u   ~ dunif(-2, 2)
+    #eta_u   ~ dnorm(0.6, 1/0.0225) #super tight
+    eta_u ~ dnorm(0,1)  
+    # U model
+    #tight
+    #gamma0 ~ dnorm(-0.4055, 84)
+    #gamma1 ~ dnorm(0, 15.36)
+    #gamma2 ~ dnorm(0, 15.36)
+    gamma0 ~ dnorm(0, 2.25)
+    gamma1 ~ dnorm(0,1)
+    gamma2 ~ dnorm(0,1)
+    # Treatment model
+    alpha0 ~ dnorm(0, 0.1)
+    alpha1 ~ dnorm(0, 0.25)
+    alpha2 ~ dnorm(0, 0.25)
+    #alpha3 ~ dunif(-2, 2)
+    #alpha3   ~ dnorm(0.6, 1/0.0225)
+    alpha3 ~ dnorm(0,1)
+    # Shapes
+    k_D ~ dgamma(9, 6)  # event shape
+    # Survival at t0 under A=1 and A=0
+    t0k <- pow(t0, k_D)
+    
+    # Derived quantity;
+    # Dirichlet weights for N observations
+    for (i in 1:N) {
+   alpha_w[i] <- 1.0
+   }
+    w[1:N] ~ ddirch(alpha_w[])
+    # Survival at t0 under A=1 and A=0
+    for (i in 1:N) {
+    # A=1
+    muD1[i]    <- eta0 + eta_x1*X1[i] + eta_x2*X2[i] + eta_a*1 + eta_u*U[i]
+    log_bD1[i] <- -k_D * muD1[i]
+    bD1[i]   <- exp(log_bD1[i])
+    S1_ind[i]   <- exp(-bD1[i] * t0k)
+    # A=0
+    muD0[i]    <- eta0 + eta_x1*X1[i] + eta_x2*X2[i] + eta_a*0 + eta_u*U[i]
+    log_bD0[i] <- -k_D * muD0[i]
+    bD0[i]   <- exp(log_bD0[i])
+    S0_ind[i]   <- exp(-bD0[i] * t0k)
+ }
+ # Marginal survival and SPCE
+ S1_marg <- inprod(w[], S1_ind[])
+ S0_marg <- inprod(w[], S0_ind[])
+  SPCE <- S1_marg - S0_marg
+}"
+
+# Let's try converting this into a standard regression in STAN
+
+
+############################
 # Kuan Liu's Causal Workshop
 ############################
 
@@ -542,6 +642,35 @@ ggplot(data.frame(psi = psi), aes(x = psi)) +
   labs(x = expression(Psi ~ "(Risk Difference)"),
        title = "Posterior ATE: Effect of RHC on 30-day Mortality") +
   theme_minimal()
+
+# STAN VERSION
+rhc <- read_csv("https://hbiostat.org/data/repo/rhc.csv") |>
+  mutate(
+    sadmdte = as.Date(sadmdte, origin = sas_origin),
+    dschdte = as.Date(dschdte, origin = sas_origin),
+    dthdte  = as.Date(dthdte,  origin = sas_origin),
+    lstctdte = as.Date(lstctdte, origin = sas_origin),
+    A       = as.integer(swang1 == "RHC"),
+    Y_death = as.integer(death == "Yes"),
+    Y_los   = as.numeric(coalesce(dschdte, lstctdte) - sadmdte)
+  )
+
+covars <- c("age","sex","race","cat1","meanbp1","hrt1","resp1","temp1","wtkilo1")
+d <- rhc[, c("A","Y_death",covars)]
+d <- d[complete.cases(d), ]
+
+# X contains all the covariates in the model
+X <- model.matrix(~ A + ., data = d[, c("A", covars)])
+Y <- d$Y_death
+a_col <- which(colnames(X) == "A")
+
+stan_data <- list(N = nrow(X), P = ncol(X), X = X, Y = Y, a_col = a_col)
+fit_parametric <- stan(file = "Stan/nonparametric.stan", data = stan_data,
+            chains = 4, iter = 2000, warmup = 1000, seed = 1006092577,
+            pars = c("psi"), include = TRUE)
+print(fit_parametric, pars = c("psi"))
+# Compare to the R version
+quantile(psi, c(0.025, 0.5, 0.975))
 
 ############################
 # Non-parametric G-Computation 
