@@ -7,6 +7,7 @@ set.seed(1006092577)
 library(BART)
 library(rstanarm)
 library(rstan)
+library(gtools)
 
 ############################
 # Exercise 1: Standardization Practise
@@ -58,7 +59,6 @@ print(fit1, pars = c("beta0", "beta1", "beta2", "sigma", "mean_ATE"))
 # 3. Treat assignment as Bernoulli P(A | W, V = v) = sigma(W + gamma), gamma = {0, -0.5, 0.5, 0.5, -0.5}
 # 4. Bernoulli outcome P(Y | A, W, V) = logit[-1 + W + (1 + sum(n_v I(Vi = v)))A] where n_v = (-.5, 0, .5, .6)
 library(rstanarm)
-library(gtools)
 n <- 500
 
 gamma_v <- c(0, -.5, .5, .5, -.5) # stratum effect on treatment assignment
@@ -572,7 +572,7 @@ jags_model_latU <- "
   SPCE <- S1_marg - S0_marg
 }"
 
-# Let's try converting this into a standard regression in STAN
+# Let's try converting this in STAN
 
 
 ############################
@@ -611,8 +611,8 @@ rhc |> count(A, swang1)
 outcome_fit <- stan_glm(Y_death ~ A + age + sex + race + cat1 + meanbp1 + hrt1 + resp1 + temp1 + wtkilo1,
                         data = rhc,
                         family = binomial(link="logit"),
-                        prior = normal(0, 0.25),
-                        prior_intercept = normal(0, 5),
+                        prior = normal(0, 1),
+                        prior_intercept = normal(0, 1),
                         chains = 4,
                         iter = 1000,
                         seed = 1006092577)
@@ -671,6 +671,7 @@ fit_parametric <- stan(file = "Stan/nonparametric.stan", data = stan_data,
 print(fit_parametric, pars = c("psi"))
 # Compare to the R version
 quantile(psi, c(0.025, 0.5, 0.975))
+
 
 ############################
 # Non-parametric G-Computation 
@@ -802,7 +803,6 @@ ggplot(psi_comparison, aes(x = psi, fill = method)) +
 
 # The idea is to use a grid search on different potential values of U in the exposure/treatment
 # model to see the effect of unmeasured confounding
-library(rstan)
 
 # Grid of (xi1, xi2) pairs to explore
 xi_grid <- expand.grid(

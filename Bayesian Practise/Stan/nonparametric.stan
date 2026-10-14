@@ -22,7 +22,7 @@ generated quantities {
   vector[N] p1;
   vector[N] p0;
   real S1_marg;
-  real S0_marg;
+  real S0_marg; 
   real psi; // risk difference: P(death | A=1) - P(death | A=0)
   vector[N] dirichlet_w;
   
@@ -33,7 +33,7 @@ generated quantities {
       X1[i, a_col] = 1;
       X0[i, a_col] = 0;
     }
-    p1 = inv_logit(X1 * beta);
+    p1 = inv_logit(X1 * beta); 
     p0 = inv_logit(X0 * beta);
   }
 

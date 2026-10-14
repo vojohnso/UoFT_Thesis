@@ -68,7 +68,7 @@ more model-dependent; this is examined in sensitivity scenario S2.
 \subsection{Spatial Structure and CAR Prior}
 
 Areas are arranged on a $\sqrt{I} \times \sqrt{I}$ synthetic grid with rook contiguity
-(shared edges only). For this simulation chosen values of $I \in \{196, 400\}$ were utilized.
+(shared edges only). For this simulation the base value is $I = 400$ (a $20 \times 20$ grid); $I = 196$ and $I = 900$ are used as smaller and larger cases.
 
 Following thesis proposal Section 4.3, spatial dependence enters only through the
 latent exposure model via $\phi_i$. The spatial random effect follows the Conditional
@@ -92,8 +92,11 @@ separate outcome random effect is added
 \subsection{Covariates and Population Sizes}
 
 \begin{itemize}
-\item \textbf{Area confounders:} $X_{ik} \overset{\text{iid}}{\sim} \mathcal{N}(0, 1)$
-for $k = 1, 2, 3, 4$
+\item \textbf{Area confounders:} $X_{i1}, X_{i3}, X_{i4} \overset{\text{iid}}{\sim} \mathcal{N}(0, 1)$;
+$X_{i2} = (G - 2)/\sqrt{2}$ with $G \sim \text{Gamma}(2, 1)$ is right-skewed (skewness $1.41$). All four have
+mean 0 and variance 1, so the exposure-variance bookkeeping below is unchanged. The skewed one is the
+confounder with the smallest outcome coefficient, which limits how much its heavy tail inflates the gap
+between a dataset's covariate-averaged ERF and the population value
 \item \textbf{Population sizes:} $\log(N_i) \sim \mathcal{N}(8.5, 1.2^2)$, giving
 median $\approx 4{,}900$, 5th percentile $\approx 600$, 95th percentile $\approx 40{,}000$.
 Motivated by Statistics Canada 2021 Census: Ontario has $\approx 500$ FSAs with total
@@ -139,21 +142,29 @@ The error model would be $\omega^2(\mathbf{D}_i) = \exp(\eta_0 + \eta_1 D_{i1} +
 
 The latent true exposure is generated from:
 \begin{equation}
-A_i \mid \mathbf{X}_i, \phi_i \sim \mathcal{N}\!\left(7 + 1.5X_{i1} - 1.5X_{i2} -
-1.5X_{i3} + 1.5X_{i4} + \phi_i,\ 9\right), \label{eq:exposure}
+A_i \mid \mathbf{X}_i, \phi_i \sim \mathcal{N}\!\left(10 - 0.75X_{i1} + 0.75X_{i2} -
+0.75X_{i3} + 0.75X_{i4} + \phi_i,\ 2.25\right), \label{eq:exposure}
 \end{equation}
-with $\sigma_A = 3$, where $\phi_i$ is the spatial random effect following the CAR prior
+with $\sigma_A = 1.5$, where $\phi_i$ is the spatial random effect following the CAR prior
 defined in equation~\eqref{eq:car} with parameters $(\rho_A, \sigma_\phi^2)$. The spatial
 random effect $\phi_i$ induces correlation in $A_i$ across neighbouring areas: areas with
 $\rho_A$ close to 1 have exposures that vary smoothly across the grid, reflecting a
 regional wildfire plume, while $\rho_A = 0$ gives spatially independent exposures.
+The exposure is not truncated: with a mean of 10 and a total SD of about 2.4, the Normal model puts
+essentially no mass below zero (no negative $A_i$ in 60 test datasets).
 
 \begin{itemize}
-\item \textbf{Mean = 7 $\mu$g/m$^3$:} Empirical annual average PM$_{2.5}$ in Ontario
-(mean $\approx 7$, median $\approx 5.4$ $\mu$g/m$^3$)
-\item \textbf{$\sigma_A = 3$:} Reflects realistic spatial variation
-\item \textbf{Covariate coefficients $\pm 1.5$:} Provides meaningful confounding given
-the exposure distribution
+\item \textbf{Mean = 10 $\mu$g/m$^3$:} A cumulative wildfire-smoke exposure level, chosen high enough
+relative to the spread that $A_i$ and $Z_i$ are essentially never negative, so no truncation or
+censoring is needed (about 5 to 15 $\mu$g/m$^3$ covers the 1st to 99th percentile)
+\item \textbf{$\sigma_A = 1.5$:} Residual SD; with the covariate and spatial components the total SD of $A_i$
+is about 2.4
+\item \textbf{Covariate coefficients $\pm 0.75$:} The signs, set against the outcome coefficients listed under the
+outcome model below, create real confounding: $\sum_k \gamma_k \beta_k = 0.375$, so an
+analysis that ignores the confounders has a log-linear exposure slope biased by about $0.07$ against a true
+slope of $0.10$ (the confounders' combined effect on the outcome has correlation about $0.2$ with $A_i$).
+With the sign pattern $(+,-,-,+)$ used by Josey et al.\ (2023) this sum is exactly zero, so the confounding
+there operates only through the exposure--covariate interaction
 \item \textbf{Note on skewness:} Ontario PM$_{2.5}$ is heavily right-skewed (skewness
 $\approx 9.2$, 99th percentile $\approx 26.4$, extreme values $> 200$ $\mu$g/m$^3$
 during severe wildfire events). The Normal captures typical days but not extreme events.
@@ -163,18 +174,21 @@ during severe wildfire events). The Normal captures typical days but not extreme
 With the exposure model now defined, we can determine $\sigma_\phi^2$ by targeting a
 meaningful proportion of the total variance in $A_i$. The total variance decomposes into
 three sources: the covariate contribution $\text{Var}(\mathbf{X}_i\text{ terms}) =
-4 \times 1.5^2 = 9$, the spatial contribution $\text{Var}(\phi_i) \approx
-\sigma_\phi^2 / \bar{d}$ where $\bar{d} \approx 3.6$ is the average number of neighbours
-on the grid, and the residual $\sigma_A^2 = 9$. The proportion of variance explained by
-the spatial random effect is:
+4 \times 0.75^2 = 2.25$, the spatial contribution $\text{Var}(\phi_i)$, and the residual
+$\sigma_A^2 = 2.25$. Under the CAR prior the average marginal variance of $\phi_i$ is
+$\sigma_\phi^2 \, \bar{q}$, where $\bar{q} = \frac{1}{I}\,\text{tr}\{(\mathbf{D}_W -
+\rho_A\mathbf{W})^{-1}\}$ is computed exactly from the grid. (The cruder approximation
+$\bar{q} \approx 1/\bar{d}$ with $\bar{d} \approx 3.6$ neighbours badly understates it at
+$\rho_A = 0.9$: a target of $0.30$ gave a realised $R^2_\phi$ of about $0.50$.) The
+proportion of variance explained by the spatial random effect is:
 \[
-R^2_\phi = \frac{\sigma_\phi^2/\bar{d}}{\text{Var}(A_i)} = \frac{\sigma_\phi^2/\bar{d}}{9 + \sigma_\phi^2/\bar{d} + 9}.
+R^2_\phi = \frac{\sigma_\phi^2 \bar{q}}{\text{Var}(A_i)} = \frac{\sigma_\phi^2 \bar{q}}{9 + \sigma_\phi^2 \bar{q} + 9}.
 \]
-Setting a target $R^2_\phi$ and solving gives $\sigma_\phi^2 = \bar{d} \times R^2_\phi
-\times 18/(1 - R^2_\phi)$. At the previously used value of $\sigma_\phi^2 = 0.3$, the
+Setting a target $R^2_\phi$ and solving gives $\sigma_\phi^2 = R^2_\phi \times 18 /
+\{(1 - R^2_\phi)\,\bar{q}\}$. At the previously used value of $\sigma_\phi^2 = 0.3$, the
 implied $R^2_\phi \approx 0.5\%$ --- essentially no spatial contribution. We therefore
-parameterise through the target $R^2_\phi \in \{0.10, 0.30, 0.50\}$ and compute the
-implied $\sigma_\phi^2$ accordingly.
+parameterise through the target $R^2_\phi$, with base value $0.20$, and compute the
+implied $\sigma_\phi^2$ accordingly; the realised share is about $0.20$.
 
 \subsection{Measurement Error Model}
 
@@ -222,21 +236,28 @@ $E(X \mid W, D) = \gamma_0 + \gamma_1 W + \gamma_2^\top D$.
 $D_i$ enters through the variance of the surrogate, relaxing the homoscedasticity
 assumption of Josey et al.\ (2023) Assumption 2:
 \begin{equation}
-Z_i \mid A_i, D_i \sim \mathcal{N}(A_i,\ \sigma_Z^2(D_i)), \qquad
+Z_i \mid A_i, D_i \sim \mathcal{N}\big(\exp(\beta_1 D_i)\,A_i,\ \sigma_Z^2(D_i)\big), \qquad
 \sigma_Z^2(D_i) = \exp(\eta_0 + \eta_1 D_i). \label{eq:errorB}
 \end{equation}
+The surrogate is not truncated; with $\eta_0 = -0.5$ a negative $Z_i$ is very rare (at most a couple of
+areas in occasional datasets) and is harmless because the Normal error model is exact.
 
 \begin{itemize}
-\item The surrogate is unbiased on average ($E[Z_i \mid A_i] = A_i$) but noisier in
-high-$D_i$ areas
-\item $\eta_1 = 0$ recovers Josey's homoscedastic Assumption 2 exactly
+\item With $\eta_0 = -0.5$ the base value $\eta_1 = 0.5$ keeps the error SD moderate (median about
+0.7, 99th percentile about 1.8, typical maximum about 2.7). At $\eta_1 = 1$ the right tail of $D_i$ would give a handful
+of areas a far larger error SD, and these areas would carry most of the total error variance.
+\item The calibration slope $\exp(\beta_1 D_i)$ is close to 1 on average ($\beta_1 = -0.1$ gives a
+mean slope of about 1.0) but falls below 1 in areas far from monitors (roughly 0.7 to 0.8 for $D_i > 1.5$),
+so the surrogate is attenuated and also noisier in high-$D_i$ areas. The log link keeps the slope
+positive despite the long right tail of $D_i$
+\item $\eta_1 = \beta_1 = 0$ recovers Josey's homoscedastic, unattenuated Assumption 2 exactly
 \item $\exp(\eta_0 + \eta_1 D_i)$ ensures positivity and implies a log-linear
 (proportional) relationship: a unit increase in $D_i$ multiplies the error variance by
 $\exp(\eta_1)$, natural for distance-based quantities (Gryparis et al., 2009)
-\item Unlike Version A, there is no attenuation or directional bias; the error is
-purely a noise term whose magnitude depends on $D_i$
+\item Unlike Version A, there is no directional shift in the mean; the departures from classical
+error are an attenuation and a noise magnitude that both depend on $D_i$
 \item This version is identifiable: the marginal variance of $Z_i$ given
-$(\mathbf{X}_i, D_i)$ is $\sigma_A^2 + \sigma_\phi^2/\bar{d} + \exp(\eta_0 + \eta_1 D_i)$,
+$(\mathbf{X}_i, D_i)$ is $\exp(2\beta_1 D_i)\,(\sigma_A^2 + \sigma_\phi^2 \bar{q}) + \exp(\eta_0 + \eta_1 D_i)$,
 allowing estimation of $(\eta_0, \eta_1)$ without observing $A_i$
 \end{itemize}
 
@@ -291,15 +312,14 @@ simulated covariates $\mathbf{X}_i$ (fresh per replicate, following Josey et al.
 \texttt{predict\_example}), rather than a separate fixed external population. This lets
 the benchmark truth reflect the sampling variability of the covariate distribution itself
 alongside the estimators being evaluated
-\item \textbf{Evaluation grid:} 201 equally spaced values covering the bulk of the
-$A_i$ distribution
+\item \textbf{Evaluation grid:} the integers 5 to 15 ($11$ values), covering the bulk of the
+$A_i$ distribution (1st to 99th percentile about 4.6 to 15.4)
 \item \textbf{Primary causal contrast: extreme vs typical exposure:}
 $\Delta(Q_{99}, Q_{50})$ where $Q_{99}$ and $Q_{50}$ are the 99th and 50th percentiles
-of the simulated $A_i$ distribution. For the base Normal$(7, 9)$ model these correspond
-approximately to $Q_{50} \approx 7$ and $Q_{99} \approx 14$, representing
+of the simulated $A_i$ distribution. For the base model these correspond
+approximately to $Q_{50} \approx 10$ and $Q_{99} \approx 15.4$, representing
 the increase in expected depression case count on a severe wildfire day relative to a
-typical day. This mirrors the empirical contrast between Ontario median PM$_{2.5}$
-($\approx 5.4$ $\mu$g/m$^3$) and 99th percentile ($\approx 26.4$ $\mu$g/m$^3$).
+typical day.
 The percentiles are computed from the simulated $A_i$ values in each replicate so that
 the contrast automatically adapts to the exposure distribution under each scenario.
 \item \textbf{Secondary contrast: IQR:} $\Delta(Q_{75}, Q_{25})$ following standard
@@ -321,33 +341,33 @@ explained by the spatial random effect.}
 Parameter & Notation & Base / Range & Justification \\
 \midrule
 \multicolumn{4}{l}{\textit{Design}} \\
-Number of areas & $I$ & 196 & Nearest perfect square to 200 \\
+Number of areas & $I$ & 400 & $20 \times 20$ grid; Josey et al. (2023) use 400 and 800 clusters \\
 Replicates & $R$ & 500 & \\
-ERF evaluation points & & 201 & Josey et al. (2023) \\
+ERF evaluation points & & 11 (integers 5 to 15) & Covers the 1st to 99th percentile of $A_i$ \\
 \midrule
 \multicolumn{4}{l}{\textit{Covariates}} \\
-Area confounders & $X_{ik}$ & $\mathcal{N}(0,1)$ & Josey et al. (2023) \\
+Area confounders & $X_{ik}$ & $X_{i2}$ standardised Gamma(2,1); others Normal & Mean 0, variance 1 \\
 Population size & $\log(N_i)$ & $\mathcal{N}(8.5, 1.44)$ & Statistics Canada 2021 Census \\
 Calibration covariate & $D_i$ & Gamma$(2,1)$, standardised & Monitor distance proxy;
 Gryparis et al. (2009) \\
 \midrule
 \multicolumn{4}{l}{\textit{True exposure}} \\
-Mean & $\mu_{A,i}$ & $7 + 1.5\mathbf{X}_i$ & Ontario PM$_{2.5}$ mean $\approx 7$
-$\mu$g/m$^3$ \\
-SD & $\sigma_A$ & 3 & Realistic spatial variation \\
-Spatial $R^2$ & $R^2_\phi$ & $\{0.10, 0.30, 0.50\}$ & Proportion of $\text{Var}(A_i)$
-explained by spatial effect; 0.30 = base \\
-Spatial correlation & $\rho_A$ & $\{0, 0.5, 0.9\}$ & \\
+Mean & $\mu_{A,i}$ & $10 + 0.75(-X_{i1} + X_{i2} - X_{i3} + X_{i4})$ & Mean 10 $\mu$g/m$^3$; keeps $A_i$ and $Z_i$ non-negative without truncation \\
+SD & $\sigma_A$ & 1.5 & Residual SD; total SD of $A_i$ about 2.4 \\
+Spatial $R^2$ & $R^2_\phi$ & 0.20 & Proportion of $\text{Var}(A_i)$
+explained by spatial effect (exact CAR calibration) \\
+Spatial correlation & $\rho_A$ & 0.9 & Base; $\rho_A = 0$ used only as a no-spatial check \\
 \midrule
 \multicolumn{4}{l}{\textit{Error model Version A}} \\
 Attenuation & $\beta_{Z1}$ & 0.8 & Wu et al. (2019) default \\
-Directional bias & $\beta_{Z2}$ & $\{0, 1, 2\}$ & 0 = no bias;
+Directional bias & $\beta_{Z2}$ & $\{0, 2\}$ & 0 = no bias;
 $>0$ = overestimation \\
 Noise variance & $\sigma_Z^2$ & 1 & Fixed moderate noise \\
 \midrule
 \multicolumn{4}{l}{\textit{Error model Version B}} \\
-Baseline variance & $\eta_0$ & 0 & $\exp(0) = 1$; moderate baseline error \\
-Di-slope & $\eta_1$ & $\{0, 0.5, 1.0, 1.5\}$ & \\
+Baseline variance & $\eta_0$ & $-0.5$ & $\exp(-0.5) \approx 0.61$ at $D_i = 0$; reliability $\mathrm{Var}(A)/\mathrm{Var}(Z) \approx 0.77$ \\
+Di-slope & $\eta_1$ & 0.5 & Moderate heteroscedasticity; $\eta_1 = 0$ recovers Josey \\
+Attenuation slope & $\beta_1$ & $-0.1$ & Calibration slope $\exp(\beta_1 D_i)$: about 1 on average, roughly 0.7 to 0.8 far from monitors \\
 \midrule
 \multicolumn{4}{l}{\textit{Outcome}} \\
 Intercept & & $-3$ & $\approx 5\%$ baseline event rate (CLSA) \\
@@ -358,7 +378,7 @@ Confounder coefs & $\boldsymbol{\gamma}$ & $(-0.5,-0.25, 0.25, 0.5)$ & \\
 $D_i^*$ distribution & & Exp$(1)$; empirical & Monotone decreasing; real Ontario data \\
 $N_i$ distribution & & Uniform$(10,1000)$ & Josey comparability \\
 Exposure distribution & & Log-normal & Extreme wildfire events \\
-Number of areas & $I$ & $\{100, 196, 400\}$ & Scaling; all perfect squares \\
+Number of areas & $I$ & $\{196, 900\}$ & Scaling; all perfect squares \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -388,20 +408,20 @@ regional wildfire event where nearby FSAs share similar smoke concentrations.
 Three forms spanning simple to complex, crossed with spatial scenarios to give six
 main simulation cells.
 
-\textbf{Linear}: $f(A_i) = 0.10(A_i - 7)$.
+\textbf{Linear}: $f(A_i) = 0.10(A_i - 10)$.
 Monotone increasing with no curvature.
 
-\textbf{Quadratic}: $f(A_i) = 0.35(A_i - 7) - 0.035(A_i - 7)^2$.
-Concave shape that rises then declines within the evaluation window (vertex at $A_i=12$).
+\textbf{Quadratic}: $f(A_i) = 0.30(A_i - 10) - 0.05(A_i - 10)^2$.
+Concave shape that rises then declines within the evaluation window (vertex at $A_i=13$).
 
-\textbf{Nonlinear (Josey cosine form)}: $f(A_i) = 0.25(Z_i + 2) - 0.75\cos(\pi(Z_i +
-4)/4) - 0.25 Z_i X_{i1}$, where $Z_i = (A_i - 7) \times 4/5$ if $A_i < 7$ and
-$(A_i - 7) \times 4/7$ otherwise. Reuses Josey et al.\ (2023)'s own coefficients directly,
-rescaled onto our window so the curve stays bounded instead of exploding on the longer
-right tail.
-S-shaped curve with an exposure-covariate interaction. The interaction means the ERF
-shape differs across areas depending on $X_{i1}$, which BART can capture but parametric
-GLMs cannot.
+\textbf{Nonlinear (up--down--up)}: $f(A_i, X_{i1}) = 0.12(A_i - 10) + 0.55\big[\sin\!\big(2\pi(A_i - 6.25)/9\big) - 0.5\big] - 0.25\tanh\!\big((A_i - 10)/4\big)X_{i1}$, centred so that $f(10, \cdot) = 0$ like the other forms.
+A linear trend plus one sine wave: the curve rises to a local maximum near $A_i = 9$, falls to a
+local minimum near $A_i = 12.5$, and then rises again through the end of the window. It is not
+captured by a linear or quadratic form, and it grows only linearly beyond the window (exposure
+rarely exceeds 17), unlike a cubic. The bounded interaction with $X_{i1}$ (at most $0.25$ per SD)
+makes the exposure effect depend on $X_{i1}$, in the spirit of Josey et al.\ (2023) but without their
+unbounded $(A_i - 10)X_{i1}$ term; the marginal ERF is then a genuine average of different
+conditional curves.
 
 \paragraph{Log-normal exposure.}
 $\log(A_i) \sim \mathcal{N}(1.68, 0.54)$ matching Ontario moments: median 5.4, mean 7,

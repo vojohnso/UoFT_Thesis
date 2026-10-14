@@ -18,11 +18,11 @@ library(gtools)
 # use_true_A: TRUE = oracle (uses Ai), FALSE = naive (uses Zi)
 
 bart_gcomp <- function(data,
-                       a_grid = seq(2, 14, by = 1),
+                       a_grid = seq(5, 15, by = 1),
                        ndpost = 1000,
                        nskip = 500,
                        use_true_A = FALSE) {
-  data$exposure <- if (use_true_A) data$Ai else data$Zi
+  data$exposure <- if (use_true_A) data$Ai else data$Zi # g-comp with true or error exposure
   model_label <- if (use_true_A) "Oracle (true A)" else "Naive (surrogate Z)"
 
   # Centre exposure for numerical stability
@@ -30,9 +30,9 @@ bart_gcomp <- function(data,
   data$exp_c <- data$exposure - exp_mean
   a_grid_c <- a_grid - exp_mean
 
-  # Outcome on log rate scale: log(Yi/Ni) = eta_i without the offset
-  Y_train <- log(data$Yi / data$Ni)
-  Y_train[!is.finite(Y_train)] <- log(0.5 / data$Ni[!is.finite(Y_train)])
+  # Outcome on log rate scale (per person rate): eta_i = log(Yi/Ni)
+  Y_train <- log(data$Yi / data$Ni) # empirical rate
+  Y_train[!is.finite(Y_train)] <- log(0.5 / data$Ni[!is.finite(Y_train)]) # zero correction 
   X_train <- as.matrix(data[, c("exp_c", "Xi1", "Xi2", "Xi3", "Xi4")])
   n <- nrow(data)
   n_grid <- length(a_grid)
@@ -53,14 +53,14 @@ bart_gcomp <- function(data,
   M <- ndpost
   theta_draws <- matrix(NA, nrow = M, ncol = n_grid)
   colnames(theta_draws) <- paste0("a=", a_grid)
+  # One Dirichlet draw per posterior draw m, shared across all grid points, so each row of
+  # theta_draws is a coherent draw of the whole curve (contrasts use the same weights)
+  bb_w <- rdirichlet(M, rep(1, n)) * rep(data$Ni, each = M)  # Ni-weighted Dirichlet (since we look at avg risk per person)
+  bb_w <- bb_w / rowSums(bb_w) # renormalize to sum to 1
   for (g in seq_len(n_grid)) {
-    col_idx <- ((g - 1) * n + 1):(g * n)
-    rate_pred <- exp(bart_fit$yhat.test[, col_idx])  # rate scale, no Ni
-    for (m in seq_len(M)) {
-      bb_w <- as.numeric(rdirichlet(1, rep(1, n))) * data$Ni  # Ni-weighted Dirichlet
-      bb_w <- bb_w / sum(bb_w)
-      theta_draws[m, g] <- sum(bb_w * rate_pred[m, ])
-    }
+    col_idx <- ((g - 1) * n + 1):(g * n) # block of columns used in yhat - one column per i per a 
+    rate_pred <- exp(bart_fit$yhat.test[, col_idx])  # converted into rate scale
+    theta_draws[, g] <- rowSums(bb_w * rate_pred)
   }
 
   theta_summary <- data.frame(
