@@ -1,32 +1,32 @@
 # Latent exposure: the true exposure A is unknown; only the surrogate Z is observed, with a known error model.
 # Test data: no spatial effect, no slope, constant error variance, so the fitted model is exactly right.
-# Run from the Simulation/ folder:  source("stan/run_latent_exposure.R")
+# Run from the Simulation/ folder:  source("stan/scripts/run_latent_exposure.R")
 library(rstan)
 rstan_options(auto_write = TRUE)
 
 source("gen_data.R")
-source("stan/prep_data.R")
-source("stan/plot_helpers.R")
+source("stan/R/prep_data.R"); source("stan/R/compile_model.R")
+source("stan/R/plot_helpers.R")
 
-stan_file <- "stan/gcomp_latent_exposure.stan"
-known_file <- "stan/gcomp_known_exposure.stan"
+latent_model <- "gcomp_latent_exposure"      # Stan models live in stan/models/
+known_model <- "gcomp_known_exposure"
 a_grid <- seq(5, 15, by = 1)
 sigma_Z <- 1                   # error SD (variance 1, reliability about 0.82), also the known value passed to Stan
 
 sim <- data.generate(seed = 1006092577, out_form = "linear",
                      rho_A = 0, bZ1 = 1, bZ2 = 0, sigma_Z = sigma_Z)
 
-fit_draws <- function(file, dat, par, init = "random") {
-  fit <- stan(file, data = dat, chains = 4, iter = 2000, cores = 2, seed = 1006092577, refresh = 0, init = init)
+fit_draws <- function(model_name, dat, par, init = "random") {
+  fit <- sampling(compile_model(model_name), data = dat, chains = 4, iter = 2000, cores = 2, seed = 1006092577, refresh = 0, init = init)
   list(fit = fit, theta = rstan::extract(fit, par)$theta)
 }
-oracle <- fit_draws(known_file, make_stan_data(sim, "oracle", df = 1, a_grid = a_grid), "theta")  # true A
-naive <- fit_draws(known_file, make_stan_data(sim, "naive", df = 1, a_grid = a_grid), "theta")    # Z as if it were A
+oracle <- fit_draws(known_model, make_stan_data(sim, "oracle", df = 1, a_grid = a_grid), "theta")  # true A
+naive <- fit_draws(known_model, make_stan_data(sim, "naive", df = 1, a_grid = a_grid), "theta")    # Z as if it were A
 # Latent model: the latent exposures start at the surrogate Z (random starts around 0 give chains that disagree)
 dat_latent <- make_stan_data_latent(sim, sigma_Z, a_grid)
 init_latent <- function() list(beta0 = -3, beta_A = 0, beta_X = rep(0, 4), gamma0 = mean(sim$Zi),
                                gamma = rep(0, 4), sigma_A = 1, A = dat_latent$Z + rnorm(dat_latent$N, 0, 0.1))
-latent <- fit_draws(stan_file, dat_latent, "theta", init = init_latent)
+latent <- fit_draws(latent_model, dat_latent, "theta", init = init_latent)
 
 summ <- function(th) data.frame(mean = colMeans(th), lo = apply(th, 2, quantile, 0.025), hi = apply(th, 2, quantile, 0.975))
 s_or <- summ(oracle$theta); s_nv <- summ(naive$theta); s_lt <- summ(latent$theta)

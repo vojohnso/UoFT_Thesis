@@ -1,19 +1,18 @@
 # Known exposure: Poisson outcome model with the true exposure A observed (no measurement error), g-computation inside Stan.
-# Run from the Simulation/ folder:  source("stan/run_known_exposure.R")
+# Run from the Simulation/ folder:  source("stan/scripts/run_known_exposure.R")
 library(rstan)
 rstan_options(auto_write = TRUE)
 
 source("gen_data.R")
 source("estimators.R")
-source("stan/prep_data.R")
-source("stan/plot_helpers.R")
+source("stan/R/prep_data.R"); source("stan/R/compile_model.R")
+source("stan/R/plot_helpers.R")
 
-stan_file <- "stan/gcomp_known_exposure.stan"
 a_grid <- seq(5, 15, by = 1)
 # Spline degrees of freedom per scenario: 1 is a straight line, 5 allows curves 
 df_by_form <- c(linear = 1, quadratic = 5, nonlinear = 5)
 
-mod <- stan_model(stan_file)
+mod <- compile_model("gcomp_known_exposure")
 results <- list()
 
 for (form in names(df_by_form)) {

@@ -5,10 +5,10 @@
 # Fits: latent model on both, plus oracle and naive on the nonlinear dataset (the benchmarks).
 # One master seed; the replicate seeds are drawn from it up front. Linear outcome scenario, no spatial term,
 # error Z = A + N(0, 1) with sigma_Z known.
-# Run from the Simulation/ folder:  Rscript stan/sim_latent_misspec.R [n_reps=30]
+# Run from the Simulation/ folder:  Rscript stan/scripts/sim_latent_misspec.R [n_reps=30]
 library(rstan)
 rstan_options(auto_write = TRUE)
-source("gen_data.R"); source("stan/prep_data.R")
+source("gen_data.R"); source("stan/R/prep_data.R"); source("stan/R/compile_model.R")
 
 args <- commandArgs(trailingOnly = TRUE)
 n_reps <- if (length(args) >= 1) as.integer(args[1]) else 30
@@ -19,8 +19,8 @@ nl <- 0.5
 set.seed(base_seed)
 rep_seeds <- sample.int(.Machine$integer.max, n_reps)    # one data seed per replicate, from the master seed
 
-known_mod <- stan_model("stan/gcomp_known_exposure.stan")
-latent_mod <- stan_model("stan/gcomp_latent_exposure.stan")
+known_mod <- compile_model("gcomp_known_exposure")
+latent_mod <- compile_model("gcomp_latent_exposure")
 pop_truth <- true_erf_pop(a_grid, "linear")
 
 fit_theta <- function(mod, dat, seed, init = "random") {

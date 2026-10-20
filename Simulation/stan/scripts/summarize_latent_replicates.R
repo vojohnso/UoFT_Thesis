@@ -1,6 +1,6 @@
 # Summarises output/stan/latent_replicates.rds: bias, RMSE and 95% coverage (population truth and dataset truth)
 # for Oracle, Naive and Latent, plus parameter recovery and sampler diagnostics.
-# Run from the Simulation/ folder:  Rscript stan/summarize_latent_replicates.R
+# Run from the Simulation/ folder:  Rscript stan/scripts/summarize_latent_replicates.R
 library(ggplot2)
 out <- readRDS("output/stan/latent_replicates.rds")
 raw <- out$summary

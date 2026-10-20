@@ -4,7 +4,7 @@
 # latent, estimated   beta_Z1, beta_Z2, sigma_Z estimated, with CAR
 library(rstan)
 rstan_options(auto_write = TRUE)
-source("gen_data.R"); source("stan/prep_data.R")
+source("gen_data.R"); source("stan/R/prep_data.R"); source("stan/R/compile_model.R")
 
 args <- commandArgs(trailingOnly = TRUE)
 n_reps <- if (length(args) >= 1) as.integer(args[1]) else 20
@@ -15,9 +15,9 @@ a_grid <- seq(5, 15, by = 1)
 set.seed(base_seed)
 rep_seeds <- sample.int(.Machine$integer.max, n_reps)
 
-known_mod <- stan_model("stan/gcomp_latent_exposure_D.stan")
-est_mod <- stan_model("stan/gcomp_latent_exposure_D_priors.stan")   # CAR takes a long time
-exposure_mod <- stan_model("stan/gcomp_known_exposure.stan")
+known_mod <- compile_model("gcomp_latent_exposure_D")
+est_mod <- compile_model("gcomp_latent_exposure_D_priors")   # CAR takes a long time
+exposure_mod <- compile_model("gcomp_known_exposure")
 pop_truth <- true_erf_pop(a_grid, "linear")
 
 fit_it <- function(mod, dat, seed, init = "random") {
