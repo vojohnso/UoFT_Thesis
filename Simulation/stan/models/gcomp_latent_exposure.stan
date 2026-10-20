@@ -30,13 +30,13 @@ parameters {
 // Chains must be initialised with A near Z
 model {
   // outcome parameters
-  beta0   ~ normal(0, 1);
-  beta_A  ~ normal(0, 1);
-  beta_X  ~ normal(0, 1);
+  beta0 ~ normal(0, 1);
+  beta_A ~ normal(0, 1);
+  beta_X ~ normal(0, 1);
   // exposure-model parameters
   // Sample A close to what Z is 
-  gamma0  ~ normal(mean_Z, 10);
-  gamma   ~ normal(0, 1);
+  gamma0 ~ normal(mean_Z, 10);
+  gamma ~ normal(0, 1);
   sigma_A ~ cauchy(0, 1); 
 
   A ~ normal(gamma0 + X * gamma, sigma_A);   // exposure model

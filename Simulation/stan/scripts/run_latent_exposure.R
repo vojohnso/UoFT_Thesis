@@ -25,7 +25,7 @@ naive <- fit_draws(known_model, make_stan_data(sim, "naive", df = 1, a_grid = a_
 # Latent model: the latent exposures start at the surrogate Z (random starts around 0 give chains that disagree)
 dat_latent <- make_stan_data_latent(sim, sigma_Z, a_grid)
 init_latent <- function() list(beta0 = -3, beta_A = 0, beta_X = rep(0, 4), gamma0 = mean(sim$Zi),
-                               gamma = rep(0, 4), sigma_A = 1, A = dat_latent$Z + rnorm(dat_latent$N, 0, 0.1))
+                               gamma = rep(0, 4), sigma_A = 1, A = dat_latent$Z)
 latent <- fit_draws(latent_model, dat_latent, "theta", init = init_latent)
 
 summ <- function(th) data.frame(mean = colMeans(th), lo = apply(th, 2, quantile, 0.025), hi = apply(th, 2, quantile, 0.975))

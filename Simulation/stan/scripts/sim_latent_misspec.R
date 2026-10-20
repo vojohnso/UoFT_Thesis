@@ -30,7 +30,7 @@ fit_theta <- function(mod, dat, seed, init = "random") {
 fit_latent <- function(sim, seed) {
   dat <- make_stan_data_latent(sim, sigma_Z, a_grid)
   init <- function() list(beta0 = -3, beta_A = 0, beta_X = rep(0, 4), gamma0 = mean(sim$Zi), gamma = rep(0, 4),
-                          sigma_A = 1, A = dat$Z + rnorm(dat$N, 0, 0.1))
+                          sigma_A = 1, A = dat$Z)
   f <- fit_theta(latent_mod, dat, seed, init)
   f$A_rmse <- sqrt(mean((colMeans(rstan::extract(f$fit, "A")$A) - sim$Ai)^2))
   f$sigma_A <- mean(rstan::extract(f$fit, "sigma_A")$sigma_A)

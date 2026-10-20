@@ -36,7 +36,7 @@ run_one <- function(rep_id) {
   seed <- sample.int(.Machine$integer.max, 1)   # Stan seed for this replicate, drawn from the same stream
   dat_lat <- make_stan_data_latent(sim, sigma_Z, a_grid)
   init_latent <- function() list(beta0 = -3, beta_A = 0, beta_X = rep(0, 4), gamma0 = mean(sim$Zi),
-                                 gamma = rep(0, 4), sigma_A = 1, A = dat_lat$Z + rnorm(dat_lat$N, 0, 0.1))
+                                 gamma = rep(0, 4), sigma_A = 1, A = dat_lat$Z)
   fits <- list(
     oracle = fit_theta(known_mod, make_stan_data(sim, "oracle", df = 1, a_grid = a_grid), seed),
     naive = fit_theta(known_mod, make_stan_data(sim, "naive", df = 1, a_grid = a_grid), seed),

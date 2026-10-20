@@ -1,8 +1,8 @@
 # Latent exposure model with the Option A error model (D shifts the surrogate), on the default spatial data.
 # Fit 1: error parameters known (no spatial term in the model).
 # Fit 2: beta_Z1, beta_Z2 and sigma_Z all estimated (priors are in the Stan file), with the CAR spatial effect.
-# beta_Z1 sets the scale of A and is not identified, so expect chains that disagree for it.
-# Run from the Simulation/ folder:  source("stan/scripts/run_latent_exposure_D.R")
+# beta_Z1 sets the scale of A and is not identified - chains dont agree
+
 library(rstan)
 rstan_options(auto_write = TRUE)
 source("gen_data.R"); source("stan/R/prep_data.R"); source("stan/R/compile_model.R")
@@ -15,10 +15,9 @@ sim <- data.generate(seed = 1006092577, n_areas = n_areas, out_form = "linear", 
 ts <- true_erf(a_grid, sim)
 
 init_fun <- function(dat, free_error = FALSE) function() {
-  Z_adj <- dat$Z - 0.5 * dat$D                       # undo a typical D shift; A starts near this
   out <- list(beta0 = -3, beta_A = 0, beta_X = rep(0, 4), gamma0 = mean(dat$Z), gamma = rep(0, 4), sigma_A = 1,
-              A = Z_adj + rnorm(dat$N, 0, 0.1))
-  if (free_error) out <- c(out, list(beta_Z1 = 1, beta_Z2 = 0, sigma_Z = 1, phi = rep(0, dat$N), sigma_phi = 1))
+              A = dat$Z)
+  if (free_error) out <- c(out, list(beta_Z1 = 1, beta_Z2 = 0, sigma_Z = 1, phi = rep(0, dat$N), sigma_phi = 1, rho = 0.5))
   out
 }
 fit_it <- function(model_name, dat, free_error) {
@@ -44,4 +43,4 @@ report("Known error model (beta_Z1 = 1, beta_Z2 = 0.5, sigma_Z = 1)", f_known, c
 # plain CAR file: with 400 areas this is very slow (hours per chain); use a smaller n_areas in data.generate() to test
 f_est <- fit_it("gcomp_latent_exposure_D_priors", make_stan_data_latent_D_priors(sim, a_grid), TRUE)
 report("Error parameters estimated, with CAR", f_est,
-       c("beta_Z1", "beta_Z2", "sigma_Z", "sigma_A", "sigma_phi", "beta_A"))
+       c("beta_Z1", "beta_Z2", "sigma_Z", "sigma_A", "sigma_phi", "rho", "beta_A"))

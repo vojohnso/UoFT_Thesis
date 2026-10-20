@@ -25,7 +25,8 @@ output/stan/  figures, tables and saved results from these scripts
 |---|---|
 | `run_known_exposure.R` | Known-exposure model vs BART and the truth, three scenarios, one dataset. |
 | `run_latent_exposure.R` | Oracle vs naive vs latent model, one dataset (linear scenario, error known). |
-| `run_latent_exposure_D.R` | Latent model with the `D` error model: known parameters, then estimated parameters with CAR (100 areas). |
+| `run_latent_exposure_D.R` | Latent model with the `D` error model, error parameters known (and a first look at the estimated version). |
+| `run_latent_exposure_D_priors.R` | Latent model with estimated error parameters + CAR, one dataset (100 areas), with sampler diagnostics: trace plots, joint-posterior plots, per-chain means. |
 | `sim_latent_replicates.R [n_reps]` | Replicates of oracle / naive / latent (known error). Summarise with `summarize_latent_replicates.R`. |
 | `sim_latent_misspec.R [n_reps]` | Misspecified exposure model (nonlinear exposure mean). |
 | `sim_latent_D_replicates.R [n_reps] [iter]` | Replicates with the `D` error model and CAR (100 areas); summary printed at the end. |

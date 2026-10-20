@@ -35,20 +35,20 @@ run_one <- function(r) {
   d_known <- make_stan_data_latent_D(sim, bZ1 = 1, bZ2 = 0.5, sigma_Z = 1, a_grid = a_grid)
   d_est <- make_stan_data_latent_D_priors(sim, a_grid)
   init_known <- function() list(beta0 = -3, beta_A = 0, beta_X = rep(0, 4), gamma0 = mean(sim$Zi), gamma = rep(0, 4),
-                                sigma_A = 1, A = sim$Zi - 0.5 * sim$Di + rnorm(nrow(sim), 0, 0.1))
-  init_est <- function() c(init_known(), list(beta_Z1 = 1, beta_Z2 = 0, sigma_Z = 1, phi = rep(0, nrow(sim)), sigma_phi = 1))
+                                sigma_A = 1, A = sim$Zi)
+  init_est <- function() c(init_known(), list(beta_Z1 = 1, beta_Z2 = 0, sigma_Z = 1, phi = rep(0, nrow(sim)), sigma_phi = 1, rho = 0.5))
   fits <- list(
     "oracle" = fit_it(exposure_mod, make_stan_data(sim, "oracle", df = 1, a_grid = a_grid), s),
     "naive" = fit_it(exposure_mod, make_stan_data(sim, "naive", df = 1, a_grid = a_grid), s),
     "latent, known errors" = fit_it(known_mod, d_known, s, init_known),
     "latent, estimated errors + CAR" = fit_it(est_mod, d_est, s, init_est))
-  pars <- rstan::extract(fits[["latent, estimated errors + CAR"]]$fit, c("beta_Z1", "beta_Z2", "sigma_Z"))
+  pars <- rstan::extract(fits[["latent, estimated errors + CAR"]]$fit, c("beta_Z1", "beta_Z2", "sigma_Z", "rho"))
   list(summary = do.call(rbind, lapply(names(fits), function(m) {
          th <- fits[[m]]$theta
          data.frame(rep = r, method = m, a = a_grid, true = pop_truth, true_sample = true_erf(a_grid, sim),
                     est = colMeans(th), lo = apply(th, 2, quantile, 0.025), hi = apply(th, 2, quantile, 0.975))})),
        diag = data.frame(rep = r, method = names(fits), div = sapply(fits, `[[`, "div"), max_rhat = sapply(fits, `[[`, "rhat")),
-       error_pars = data.frame(rep = r, beta_Z1 = mean(pars$beta_Z1), beta_Z2 = mean(pars$beta_Z2), sigma_Z = mean(pars$sigma_Z)))
+       error_pars = data.frame(rep = r, beta_Z1 = mean(pars$beta_Z1), beta_Z2 = mean(pars$beta_Z2), sigma_Z = mean(pars$sigma_Z), rho = mean(pars$rho)))
 }
 
 t0 <- Sys.time()
@@ -71,6 +71,6 @@ cat("\nAveraged over the grid,", n_reps, "replicates, coverage against the popul
 cat("\nSampler diagnostics: replicates with any divergence, and worst / median of each replicate's max R-hat:\n")
 print(do.call(rbind, lapply(split(out$diag, out$diag$method), function(d) data.frame(method = d$method[1], replicates_with_divergence = sum(d$div > 0),
       worst_rhat = max(d$max_rhat), median_rhat = median(d$max_rhat)))), digits = 3, row.names = FALSE)
-cat("\nError parameters, posterior means across replicates (truth: beta_Z1 = 1, beta_Z2 = 0.5, sigma_Z = 1):\n")
+cat("\nError parameters, posterior means across replicates (truth: beta_Z1 = 1, beta_Z2 = 0.5, sigma_Z = 1, rho = 0.9):\n")
 print(round(sapply(out$error_pars[, -1], function(x) c(mean = mean(x), sd = sd(x))), 3))
 write.csv(summ, "output/stan/latent_D_replicates_summary.csv", row.names = FALSE)

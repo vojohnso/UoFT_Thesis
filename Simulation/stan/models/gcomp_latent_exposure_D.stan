@@ -1,3 +1,5 @@
+// Latent exposure model with the Option A error model, estimated error parameter
+
 data {
   int<lower=1> N;                // number of areas
   int<lower=1> G;                // number of exposure grid values
@@ -41,7 +43,7 @@ model {
   gamma ~ normal(0, 1);
   sigma_A ~ cauchy(0, 1); 
 
-  A ~ normal(gamma0 + X * gamma, sigma_A);   // exposure model
+  A ~ normal(gamma0 + X * gamma, sigma_A);   // exposure model prior
   Z ~ normal(beta_Z1 * A + beta_Z2 * D, sigma_Z);    // measurement model (Option A: D shifts the surrogate)
   Y ~ poisson_log(log_pop + beta0 + beta_A * A + X * beta_X);
 }
