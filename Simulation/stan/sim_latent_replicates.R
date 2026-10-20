@@ -14,8 +14,7 @@ args <- commandArgs(trailingOnly = TRUE)
 n_reps <- if (length(args) >= 1) as.integer(args[1]) else 50
 base_seed <- 1006092577
 a_grid <- seq(5, 15, by = 1)
-eta0 <- 0
-sigma_Z <- sqrt(exp(eta0))
+sigma_Z <- 1                  # error SD, also the known value passed to Stan
 methods <- c("oracle", "naive", "latent")
 
 # Compile once, before forking
@@ -33,7 +32,7 @@ fit_theta <- function(mod, dat, seed, init = "random") {
 }
 
 run_one <- function(rep_id) {
-  sim <- data.generate(seed = NULL, out_form = "linear", rho_A = 0, beta1 = 0, eta1 = 0, eta0 = eta0)
+  sim <- data.generate(seed = NULL, out_form = "linear", rho_A = 0, bZ1 = 1, bZ2 = 0, sigma_Z = sigma_Z)
   seed <- sample.int(.Machine$integer.max, 1)   # Stan seed for this replicate, drawn from the same stream
   dat_lat <- make_stan_data_latent(sim, sigma_Z, a_grid)
   init_latent <- function() list(beta0 = -3, beta_A = 0, beta_X = rep(0, 4), gamma0 = mean(sim$Zi),

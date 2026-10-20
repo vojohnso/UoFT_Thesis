@@ -9,7 +9,7 @@ library(gtools)
 # Outcome modelled on log(Yi/Ni) which is the log event rate per person.
 # Predictions are exponentiated to recover the rate scale: theta(a) = E[Yi(a)/Ni].
 # Bayesian bootstrap applies Dirichlet weights over areas per posterior draw,
-# with Ni as importance weights to match the weighted mean in true_erf.
+# (no Ni weights: theta(a) is the average rate over areas, matching the plain mean in true_erf).
 #
 # data:       output of data.generate()
 # a_grid:     exposure values at which to evaluate the ERF
@@ -48,15 +48,14 @@ bart_gcomp <- function(data,
   bart_fit <- gbart(X_train, Y_train, x.test = X_test,
                     type = "wbart", ndpost = ndpost, nskip = nskip, printevery = 0)
 
-  # G-computation: for each draw m and grid point g, compute Ni-weighted mean rate
+  # G-computation: for each draw m and grid point g, compute the Dirichlet-weighted mean rate
   # Bayesian bootstrap draws Dirichlet weights then computes weighted mean of rates
   M <- ndpost
   theta_draws <- matrix(NA, nrow = M, ncol = n_grid)
   colnames(theta_draws) <- paste0("a=", a_grid)
   # One Dirichlet draw per posterior draw m, shared across all grid points, so each row of
   # theta_draws is a coherent draw of the whole curve (contrasts use the same weights)
-  bb_w <- rdirichlet(M, rep(1, n)) * rep(data$Ni, each = M)  # Ni-weighted Dirichlet (since we look at avg risk per person)
-  bb_w <- bb_w / rowSums(bb_w) # renormalize to sum to 1
+  bb_w <- rdirichlet(M, rep(1, n))  # plain Dirichlet weights over areas (each area counts equally)
   for (g in seq_len(n_grid)) {
     col_idx <- ((g - 1) * n + 1):(g * n) # block of columns used in yhat - one column per i per a 
     rate_pred <- exp(bart_fit$yhat.test[, col_idx])  # converted into rate scale

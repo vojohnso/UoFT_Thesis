@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2026.7.5)  11 OCT 2026 20:01
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2026.7.5)  18 OCT 2026 16:03
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -347,35 +347,40 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 {/Users/johnsonvo/Library/TinyTeX/texmf-var/fonts/map/pdftex/updmap/pdftex.map}]
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 107.
+(hyperref)                removing `math shift' on input line 108.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `subscript' on input line 107.
+(hyperref)                removing `subscript' on input line 108.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 107.
+(hyperref)                removing `math shift' on input line 108.
 
-[2] [3] [4] [5]
-Overfull \hbox (44.72139pt too wide) in paragraph at lines 374--374
+[2] [3] [4] [5] [6]
+Overfull \hbox (9.74391pt too wide) in paragraph at lines 368--370
+[]\OT1/cmr/bx/n/10.95 Estimators: \OT1/cmr/m/n/10.95 g-computation av-er-ages the fit-ted rate with Dirichlet$(1\OML/cmm/m/it/10.95 ; [] ; \OT1/cmr/m/n/10.95 1)$ Bayesian-bootstrap
+ []
+
+
+Overfull \hbox (44.72139pt too wide) in paragraph at lines 429--429
 []|\OT1/cmr/m/n/10 Linear/Quadratic/Nonlinear|  
  []
 
 
-Overfull \hbox (18.11014pt too wide) in paragraph at lines 375--375
+Overfull \hbox (18.11014pt too wide) in paragraph at lines 430--430
 []|$\OT1/cmr/m/n/10 (\OMS/cmsy/m/n/10 ^^@\OT1/cmr/m/n/10 0\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 5\OML/cmm/m/it/10 ; \OMS/cmsy/m/n/10 ^^@\OT1/cmr/m/n/10 0\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 25\OML/cmm/m/it/10 ; \OT1/cmr/m/n/10 0\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 25\OML/cmm/m/it/10 ; \OT1/cmr/m/n/10 0\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 5)$|  
  []
 
-[6] [7]
-Overfull \vbox (16.69362pt too high) has occurred while \output is active []
+[7] [8]
+Overfull \vbox (64.69362pt too high) has occurred while \output is active []
 
- [8
+ [9
 pdfTeX warning (ext4): destination with the same identifier (name{table.1}) has been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.385 
-      ] [9] [10] (./sim_versions.aux)
+l.440 
+      ] [10] [11] (./sim_versions.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
@@ -384,18 +389,18 @@ Package rerunfilecheck Info: File `sim_versions.out' has not changed.
 (rerunfilecheck)             Checksum: 117F4E54F7EE8FA32BABF5153785B189;2240.
  ) 
 Here is how much of TeX's memory you used:
- 10240 strings out of 469514
- 155025 string characters out of 5468747
- 594709 words of memory out of 5000000
- 38732 multiletter control sequences out of 15000+600000
- 643206 words of font info for 97 fonts, out of 8000000 for 9000
+ 10244 strings out of 469514
+ 155064 string characters out of 5468747
+ 595873 words of memory out of 5000000
+ 38733 multiletter control sequences out of 15000+600000
+ 643552 words of font info for 98 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
  75i,16n,79p,420b,520s stack positions out of 10000i,1000n,20000p,200000b,200000s
  </Users/johnsonvo/Library/TinyTeX/texmf-var/fonts/pk/ljfour/jknappen/ec/tcrm1095.600pk></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmmib10.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></Users/johnsonvo/Library/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on sim_versions.pdf (10 pages, 260781 bytes).
+Output written on sim_versions.pdf (11 pages, 267904 bytes).
 PDF statistics:
- 244 PDF objects out of 1000 (max. 8388607)
- 190 compressed objects within 2 object streams
- 43 named destinations out of 1000 (max. 500000)
+ 251 PDF objects out of 1000 (max. 8388607)
+ 196 compressed objects within 2 object streams
+ 46 named destinations out of 1000 (max. 500000)
  121 words of extra memory for PDF output out of 10000 (max. 10000000)
 

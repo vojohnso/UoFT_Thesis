@@ -73,12 +73,21 @@ draw_populations <- function(n) pmax(round(exp(rnorm(n, mean = 8.5, sd = 1.2))),
 # n_areas:  number of FSA postal code areas I (must be a perfect square; 400 = 20 x 20 grid)
 # gamma:    exposure model coefficients, gamma0 = 10 is the exposure mean; the signs of gamma1-4 against the outcome
 #           coefficients in cov_effects set the confounding (sum of products 0.375, an unadjusted log-slope bias of about 0.07)
+# exposure_nonlin: 0 (default) = the exposure mean is linear in Xi. Otherwise adds
+#           exposure_nonlin * ((Xi1^2 - 1) + Xi2*Xi3) to the exposure mean (mean zero, uncorrelated with the linear
+#           terms), so a linear exposure model is misspecified. Adds 3*exposure_nonlin^2 to Var(Ai), which the R2_phi
+#           bookkeeping ignores (use rho_A = 0 with it)
 # sigma_A:  residual SD of true exposure; with gamma = +-0.75 the total SD is about 2.4, so A and Z are never negative in practice (no clipping)
 # rho_A:    spatial correlation in exposure CAR prior, 0 = spatially independent
 # R2_phi:   target proportion of Var(Ai) explained by spatial random effect phi
-# eta0:     baseline log error variance, exp(eta0) is error at Di = 0
-# eta1:     Di-slope, eta1 = 0 recovers Josey homoscedastic Assumption 2
-# beta1:    attenuation slope in Di: E[Zi | Ai, Di] = exp(beta1*Di) * Ai; beta1 = 0 means no attenuation
+# error_model: "A" (default, the model agreed with the supervisor): Zi | Ai, Di ~ N(bZ1*Ai + bZ2*Di, sigma_Z^2)
+#           "B" (earlier primary model, kept so archived results can be reproduced):
+#               Zi | Ai, Di ~ N(exp(beta1*Di)*Ai, exp(eta0 + eta1*Di))
+# bZ1:      Option A calibration slope on Ai; 1 = unattenuated
+# bZ2:      Option A shift per SD of Di (Di is mean 0, variance 1): the surrogate reads high in high-Di areas
+# sigma_Z:  Option A SD of the (homoscedastic) error
+# eta0, eta1, beta1: Option B only. exp(eta0) is the error variance at Di = 0; eta1 is the Di-slope of the log
+#           variance (eta1 = 0 is Josey's homoscedastic Assumption 2); exp(beta1*Di) is the attenuation slope
 # out_form: ERF functional form: linear / quadratic / nonlinear
 # xi:       NegBin dispersion, xi = Inf gives Poisson (base model)
 
@@ -86,9 +95,14 @@ data.generate <- function(seed = 1006092577,
                           n_areas = 400,
                           gamma = c(gamma0 = 10, gamma1 = -0.75, gamma2 = 0.75,
                                     gamma3 = -0.75, gamma4 = 0.75),
+                          exposure_nonlin = 0,
                           sigma_A = 1.5,
                           rho_A = 0.9,
                           R2_phi = 0.20,
+                          error_model = c("A", "B"),
+                          bZ1 = 1,
+                          bZ2 = 0.5,
+                          sigma_Z = 1,
                           eta0 = -0.5,
                           eta1 = 0.5,
                           beta1 = -0.1,
@@ -96,6 +110,7 @@ data.generate <- function(seed = 1006092577,
                           xi = Inf) {
   if (!is.null(seed)) set.seed(seed)
   out_form <- match.arg(out_form)
+  error_model <- match.arg(error_model)
   I <- n_areas
 
   # Step 1: Area-level covariates
@@ -124,15 +139,22 @@ data.generate <- function(seed = 1006092577,
   # Signs give real confounding: sum(gamma_k * beta_k) = 0.375 (the outcome coefficients are in cov_effects)
   mu_A <- gamma["gamma0"] + gamma["gamma1"]*Xi1 + gamma["gamma2"]*Xi2 +
     gamma["gamma3"]*Xi3 + gamma["gamma4"]*Xi4
+  mu_A <- mu_A + exposure_nonlin * ((Xi1^2 - 1) + Xi2 * Xi3)
   Ai <- rnorm(I, mean = mu_A + phi, sd = sigma_A)
 
-  # Step 5: Error-prone surrogate -- Version B (primary model)
-  # Zi | Ai, Di ~ N(exp(beta1*Di) * Ai, exp(eta0 + eta1*Di))
-  # Di standardised so eta1 = 1 means 1 SD increase in distance multiplies variance by e
-  # exp(beta1*Di) is the calibration slope: about 1 on average (beta1 = -0.1) but attenuated far from monitors
-  atten_i <- exp(beta1 * Di)
-  sigma_Zi <- sqrt(exp(eta0 + eta1 * Di))
-  Zi <- rnorm(I, mean = atten_i * Ai, sd = sigma_Zi)
+  # Step 5: Error-prone surrogate
+  if (error_model == "A") {
+    # Option A: Zi | Ai, Di ~ N(bZ1*Ai + bZ2*Di, sigma_Z^2); Di shifts the mean of the surrogate
+    atten_i <- rep(bZ1, I)
+    Zi <- rnorm(I, mean = bZ1 * Ai + bZ2 * Di, sd = sigma_Z)
+  } else {
+    # Option B: Zi | Ai, Di ~ N(exp(beta1*Di) * Ai, exp(eta0 + eta1*Di))
+    # Di standardised so eta1 = 1 means 1 SD increase in distance multiplies variance by e
+    # exp(beta1*Di) is the calibration slope: about 1 on average (beta1 = -0.1) but attenuated far from monitors
+    atten_i <- exp(beta1 * Di)
+    sigma_Zi <- sqrt(exp(eta0 + eta1 * Di))
+    Zi <- rnorm(I, mean = atten_i * Ai, sd = sigma_Zi)
+  }
 
   # Step 6: Poisson outcome with log-linear predictor and population offset
   # Yi ~ Poisson(Ni * exp(eta_i)), intercept -3 gives ~5% baseline event rate
@@ -166,30 +188,29 @@ data.generate <- function(seed = 1006092577,
 # True ERF
 # ============================================================
 
-# Two truths for the average potential outcome theta(a) = E[Yi(a)/Ni], the event rate per person if every
-# area's exposure were set to a:
-#     theta(a) = sum_i Ni * r_i(a) / sum_i Ni,   r_i(a) = exp(-3 + f(a, Xi1) + cov(Xi))
+# Two truths for the average potential outcome theta(a) = E[Yi(a)/Ni], the event rate per person in an area if
+# every area's exposure were set to a (areas count equally; rate * Ni gives expected counts):
+#     theta(a) = (1/I) sum_i r_i(a),   r_i(a) = exp(-3 + f(a, Xi1) + cov(Xi))   (average rate over areas)
 # Neither uses the realised Ai, Zi, phi, Di or the Poisson noise: the intervention sets A = a, and phi and Di
 # do not enter the outcome. Both truths use the same calculation (avg_rate) and differ only in the areas
 # it is applied to:
 #   true_erf:     this dataset's own areas (sample / finite-population truth, as in Josey et al. 2023)
 #   true_erf_pop: a very large simulated population of areas (the proposal's population estimand)
 
-avg_rate <- function(a, Xi1, Xi2, Xi3, Xi4, Ni, out_form) {
-  weighted.mean(exp(-3 + erf_terms(a, Xi1, out_form) + cov_effects(Xi1, Xi2, Xi3, Xi4)), Ni)
+avg_rate <- function(a, Xi1, Xi2, Xi3, Xi4, out_form) {
+  mean(exp(-3 + erf_terms(a, Xi1, out_form) + cov_effects(Xi1, Xi2, Xi3, Xi4)))
 }
 
 true_erf <- function(a.vals, data) {
   out_form <- data$out_form[1]
-  sapply(a.vals, function(a) avg_rate(a, data$Xi1, data$Xi2, data$Xi3, data$Xi4, data$Ni, out_form))
+  sapply(a.vals, function(a) avg_rate(a, data$Xi1, data$Xi2, data$Xi3, data$Xi4, out_form))
 }
 
-# Population version: draws n_mc areas (confounders and populations) and applies the same calculation
+# Population version: draws n_mc areas (confounders only; Ni no longer enters the truth) and applies the same calculation
 # but from many samples to reduce Monte Carlo error 
 # so the truth is identical across runs.
 true_erf_pop <- function(a.vals, out_form, n_mc = 2e6, seed = 5155) {
   set.seed(seed)
   Xc <- draw_confounders(n_mc)
-  Ni <- draw_populations(n_mc)
-  sapply(a.vals, function(a) avg_rate(a, Xc$Xi1, Xc$Xi2, Xc$Xi3, Xc$Xi4, Ni, out_form))
+  sapply(a.vals, function(a) avg_rate(a, Xc$Xi1, Xc$Xi2, Xc$Xi3, Xc$Xi4, out_form))
 }

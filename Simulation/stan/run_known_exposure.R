@@ -17,7 +17,7 @@ mod <- stan_model(stan_file)
 results <- list()
 
 for (form in names(df_by_form)) {
-  sim <- data.generate(seed = 1006092577, out_form = form)   # replicate 1 of sim_replicates.R
+  sim <- data.generate(seed = 1006092577, out_form = form)   # the base seed (replicate r of sim_replicates.R uses base_seed + r)
   dat <- make_stan_data(sim, exposure = "oracle", df = df_by_form[[form]], a_grid = a_grid)
   fit <- sampling(mod, data = dat, chains = 4, iter = 2000, cores = 2, seed = 1006092577, refresh = 0)
 

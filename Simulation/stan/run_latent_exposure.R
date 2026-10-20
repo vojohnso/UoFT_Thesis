@@ -11,11 +11,10 @@ source("stan/plot_helpers.R")
 stan_file <- "stan/gcomp_latent_exposure.stan"
 known_file <- "stan/gcomp_known_exposure.stan"
 a_grid <- seq(5, 15, by = 1)
-eta0 <- 0                      # error variance exp(eta0) = 1, reliability about 0.82
-sigma_Z <- sqrt(exp(eta0))     # the known error SD passed to Stan
+sigma_Z <- 1                   # error SD (variance 1, reliability about 0.82), also the known value passed to Stan
 
-sim <- data.generate(seed = 1006092577 + 1, out_form = "linear",
-                     rho_A = 0, beta1 = 0, eta1 = 0, eta0 = eta0)
+sim <- data.generate(seed = 1006092577, out_form = "linear",
+                     rho_A = 0, bZ1 = 1, bZ2 = 0, sigma_Z = sigma_Z)
 
 fit_draws <- function(file, dat, par, init = "random") {
   fit <- stan(file, data = dat, chains = 4, iter = 2000, cores = 2, seed = 1006092577, refresh = 0, init = init)

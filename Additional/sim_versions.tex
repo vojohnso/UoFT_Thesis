@@ -97,7 +97,8 @@ $X_{i2} = (G - 2)/\sqrt{2}$ with $G \sim \text{Gamma}(2, 1)$ is right-skewed (sk
 mean 0 and variance 1, so the exposure-variance bookkeeping below is unchanged. The skewed one is the
 confounder with the smallest outcome coefficient, which limits how much its heavy tail inflates the gap
 between a dataset's covariate-averaged ERF and the population value
-\item \textbf{Population sizes:} $\log(N_i) \sim \mathcal{N}(8.5, 1.2^2)$, giving
+\item \textbf{Population sizes:} $\log(N_i) \sim \mathcal{N}(8.5, 1.2^2)$, used only as the Poisson offset
+(they do not enter the estimand), giving
 median $\approx 4{,}900$, 5th percentile $\approx 600$, 95th percentile $\approx 40{,}000$.
 Motivated by Statistics Canada 2021 Census: Ontario has $\approx 500$ FSAs with total
 population 14,223,942, ranging from dense urban FSAs in Toronto to sparse rural FSAs in
@@ -204,10 +205,12 @@ models are spatially correlated because nearby areas share the same monitoring s
 data when their surrogates are generated. Incorporating spatially correlated errors is
 listed as a potential extension.
 
-\paragraph{Version A: Classical error with Di-dependent mean (misspecification scenario).}
+\paragraph{Version A: Classical error with Di-dependent mean (primary model, agreed with the supervisor).}
 
-Following Wu et al.\ (2019), $D_i$ enters through the mean of the surrogate,
-introducing systematic directional bias:
+Motivated by Wu et al.\ (2019), where covariates $D$ enter the model relating the true and
+error-prone exposures, $D_i$ enters through the mean of the surrogate, introducing systematic
+directional bias (note the direction here is surrogate given truth, the opposite of Wu et al.;
+see the note after this list and Version C):
 \begin{equation}
 Z_i \mid A_i, D_i \sim \mathcal{N}(\beta_{Z1} A_i + \beta_{Z2} D_i,\ \sigma_Z^2).
 \label{eq:errorA}
@@ -218,8 +221,9 @@ data.
 
 \begin{itemize}
 \item \textbf{$\beta_{Z1}$}: attenuation. $\beta_{Z1} = 1$ centres the surrogate on the
-truth; $\beta_{Z1} < 1$ attenuates high exposures. Wu et al.\ (2019) use $\beta_1 = 0.8$
-as their default.
+truth; $\beta_{Z1} < 1$ attenuates high exposures. (Wu et al.\ (2019) use $\gamma_1 = 0.8$, but that is the
+slope of the true exposure on the surrogate, not of the surrogate on the truth, so it is not a default for
+$\beta_{Z1}$.)
 \item \textbf{$\beta_{Z2}$}: directional bias from $D_i$. When $\beta_{Z2} > 0$ the
 surrogate overestimates true exposure in high-$D_i$ areas (far from monitors), consistent
 with the MELONS finding of systematic overestimation in deprived and remote areas. When
@@ -228,10 +232,14 @@ $\beta_{Z2} = 0$ this reduces to standard classical error.
 captured entirely through the mean shift $\beta_{Z2} D_i$.
 \end{itemize}
 
-Wu et al.\ (2019) write this in the regression calibration direction as
-$E(X \mid W, D) = \gamma_0 + \gamma_1 W + \gamma_2^\top D$.
+Wu et al.\ (2019) write their model in the regression calibration direction,
+$E(X \mid W, D) = \gamma_0 + \gamma_1 W + \gamma_2^\top D$, i.e.\ the true exposure given the
+surrogate, and in their simulations they generate the surrogate $W$ first and then $X \mid W, D$.
+Version A is therefore not their model with renamed coefficients: the two have different structure
+(see Version C), and their $\gamma$ cannot be reused as $\beta_Z$. Neither Wu et al.\ nor this document
+uses the terms classical or Berkson for these models; the labels are ours.
 
-\paragraph{Version B: Classical error with Di-dependent variance (primary model).}
+\paragraph{Version B: Classical error with Di-dependent variance (earlier primary model, now an alternative).}
 
 $D_i$ enters through the variance of the surrogate, relaxing the homoscedasticity
 assumption of Josey et al.\ (2023) Assumption 2:
@@ -260,6 +268,49 @@ error are an attenuation and a noise magnitude that both depend on $D_i$
 $(\mathbf{X}_i, D_i)$ is $\exp(2\beta_1 D_i)\,(\sigma_A^2 + \sigma_\phi^2 \bar{q}) + \exp(\eta_0 + \eta_1 D_i)$,
 allowing estimation of $(\eta_0, \eta_1)$ without observing $A_i$
 \end{itemize}
+
+\paragraph{Version C: Berkson-direction error with a $D_i$ shift (possible specification, not implemented).}
+
+Following the direction of Wu et al.\ (2019), the surrogate is the starting point and the true exposure is
+generated from it, so the error sits in the truth and is independent of the surrogate:
+\begin{equation}
+A_i \mid Z_i, D_i \sim \mathcal{N}(b_1 Z_i + b_2 D_i,\ \sigma_e^2).
+\label{eq:errorC}
+\end{equation}
+This is Version A with the roles of $Z_i$ and $A_i$ swapped. Here $Z_i$ is an observed covariate and
+$A_i$ is the latent quantity. The non-differential assumption still holds by construction, since $Z_i$ does not
+appear in the outcome equation.
+
+\begin{itemize}
+\item \textbf{$b_1$}: calibration slope. $b_1 = 1$ means the truth is centred on the surrogate; Wu et al.\ use
+$\gamma_1 = 0.8$ in their simulations. There is no intercept, as in Version A, so the surrogate is unbiased on average
+(and the location of $A_i$ is anchored by $Z_i$).
+\item \textbf{$b_2$}: shift per SD of $D_i$. When $b_2 > 0$ the truth is higher than the surrogate in
+high-$D_i$ areas (far from monitors), so the surrogate underestimates exposure there. This is the same kind of
+directional bias as $\beta_{Z2}$ in Version A, seen from the other side.
+\item \textbf{$\sigma_e^2$}: the variance of the truth that the surrogate and $D_i$ do not explain.
+\item \textbf{Simulation:} to keep the confounding and the outcome identical to Versions A and B, the
+surrogate is built from the covariate and spatial part of the exposure plus noise,
+$Z_i = (\mu_i + \phi_i)/b_1 + w_i$ with $\mu_i = \gamma_0 + \sum_k \gamma_k X_{ik}$ and
+$w_i \sim \mathcal{N}(0, \sigma_w^2)$, and then $A_i$ is drawn from equation~\eqref{eq:errorC}. Setting
+$\sigma_w^2 = (\sigma_A^2 - b_2^2 - \sigma_e^2)/b_1^2$ keeps
+$\text{Var}(A_i \mid \mathbf{X}_i, \phi_i) = \sigma_A^2 = 2.25$. Base values: $b_1 = 1$, $b_2 = 0.5$,
+$\sigma_e = 0.75$
+\end{itemize}
+
+In a test dataset with these values the regression of $A$ on $(Z, D)$ recovered slope $1.00$, $D$ coefficient
+$0.48$ and residual SD $0.72$, the reliability $\text{corr}^2(A, Z)$ was $0.86$ (about $0.83$ for Version A), and a naive
+log-linear analysis on $Z$ gave a slope of $0.101$ against a true $0.10$. So, unlike under Versions A and B, a naive analysis is
+essentially unbiased for the slope here; it is biased for curved exposure--response functions, since
+$E[f(A) \mid Z] \neq f(Z)$. This makes Version C a check that a correction does no harm when the naive analysis is nearly right.
+
+Reversing the direction does not resolve identifiability. $A_i$ is never observed, so its scale
+is not fixed by the data: $(b_1, b_2, \sigma_e)$ can be rescaled together with the outcome slope
+without changing the distribution of $(Y_i, Z_i, D_i)$. Leaving out the intercept anchors the location, and fixing
+$b_1 = 1$ anchors the scale. That leaves $b_2$ and
+$\sigma_e$ identified only through the outcome, using the assumption that $D_i$ affects the outcome only through $A_i$. Wu et al.\
+avoid this with a validation sample in which $A_i$ is observed. Version C is documented as an alternative
+only; it is not implemented in \texttt{data.generate()} and is not planned for the main study.
 
 \subsection{Outcome Model}
 
@@ -296,29 +347,33 @@ assumption by construction.
 Following Josey et al.\ (2023), the target estimand is the marginal exposure-response
 function (ERF):
 \[
-\theta(a) \equiv \mathbb{E}[Y_i(a)],
+\theta(a) \equiv \mathbb{E}[Y_i(a)/N_i],
 \]
-where $Y_i(a)$ is the potential outcome that would occur in area $i$ if, possibly contrary
-to what is observed, it had received exposure level $A_i = a$. The causal contrast
+the average event rate per person across areas, where $Y_i(a)$ is the count that would occur in
+area $i$ if, possibly contrary to what is observed, it had received exposure level $A_i = a$.
+Every area counts equally; expected counts are recovered by multiplying the rate by $N_i$. The causal contrast
 between two exposure levels is $\Delta(a_1, a_0) = \theta(a_1) - \theta(a_0)$. Under
 the identifying assumptions in Section~3, the ERF is identified by the g-formula:
 \[
-\theta(a) = \mathbb{E}\!\left[\mathbb{E}[Y_i \mid A_i = a, \mathbf{X}_i]\right].
+\theta(a) = \mathbb{E}\!\left[\mathbb{E}[Y_i / N_i \mid A_i = a, \mathbf{X}_i]\right]
+= \mathbb{E}\!\left[\exp(-3 + f(a, X_{i1}) + \mathbf{X}_i^\top\boldsymbol{\beta})\right].
 \]
 
 \begin{itemize}
-\item The true $\theta(a)$ is computed by Monte Carlo using each replicate's own
-simulated covariates $\mathbf{X}_i$ (fresh per replicate, following Josey et al.\ 2023
-\texttt{predict\_example}), rather than a separate fixed external population. This lets
-the benchmark truth reflect the sampling variability of the covariate distribution itself
-alongside the estimators being evaluated
+\item \textbf{Truth:} $\theta(a)$ is the mean of $\exp(-3 + f(a, X_{i1}) + \mathbf{X}_i^\top\boldsymbol{\beta})$
+over areas, with no $N_i$ weights. Coverage is reported against the \emph{population} truth, the mean over
+$2\times 10^6$ simulated areas drawn from the same covariate distribution (identical in every replicate),
+and also against each dataset's \emph{sample} truth (the mean over that dataset's own $400$ areas, as in
+Josey et al.\ 2023)
+\item \textbf{Estimators:} g-computation averages the fitted rate with Dirichlet$(1,\dots,1)$
+Bayesian-bootstrap weights over areas, one weight vector per posterior draw
 \item \textbf{Evaluation grid:} the integers 5 to 15 ($11$ values), covering the bulk of the
 $A_i$ distribution (1st to 99th percentile about 4.6 to 15.4)
 \item \textbf{Primary causal contrast: extreme vs typical exposure:}
 $\Delta(Q_{99}, Q_{50})$ where $Q_{99}$ and $Q_{50}$ are the 99th and 50th percentiles
 of the simulated $A_i$ distribution. For the base model these correspond
 approximately to $Q_{50} \approx 10$ and $Q_{99} \approx 15.4$, representing
-the increase in expected depression case count on a severe wildfire day relative to a
+the increase in the average depression rate on a severe wildfire day relative to a
 typical day.
 The percentiles are computed from the simulated $A_i$ values in each replicate so that
 the contrast automatically adapts to the exposure distribution under each scenario.
@@ -342,7 +397,7 @@ Parameter & Notation & Base / Range & Justification \\
 \midrule
 \multicolumn{4}{l}{\textit{Design}} \\
 Number of areas & $I$ & 400 & $20 \times 20$ grid; Josey et al. (2023) use 400 and 800 clusters \\
-Replicates & $R$ & 500 & \\
+Replicates & $R$ & 200 & \\
 ERF evaluation points & & 11 (integers 5 to 15) & Covers the 1st to 99th percentile of $A_i$ \\
 \midrule
 \multicolumn{4}{l}{\textit{Covariates}} \\
@@ -359,10 +414,10 @@ explained by spatial effect (exact CAR calibration) \\
 Spatial correlation & $\rho_A$ & 0.9 & Base; $\rho_A = 0$ used only as a no-spatial check \\
 \midrule
 \multicolumn{4}{l}{\textit{Error model Version A}} \\
-Attenuation & $\beta_{Z1}$ & 0.8 & Wu et al. (2019) default \\
-Directional bias & $\beta_{Z2}$ & $\{0, 2\}$ & 0 = no bias;
-$>0$ = overestimation \\
-Noise variance & $\sigma_Z^2$ & 1 & Fixed moderate noise \\
+Attenuation & $\beta_{Z1}$ & 1 & Surrogate centred on the truth; $<1$ attenuates \\
+Directional bias & $\beta_{Z2}$ & 0.5 & Shift per SD of $D_i$; 0 = no bias,
+$>0$ = overestimation in high-$D_i$ areas \\
+Noise variance & $\sigma_Z^2$ & 1 & Fixed moderate noise; reliability $\mathrm{Var}(A)/\mathrm{Var}(Z) \approx 0.83$ \\
 \midrule
 \multicolumn{4}{l}{\textit{Error model Version B}} \\
 Baseline variance & $\eta_0$ & $-0.5$ & $\exp(-0.5) \approx 0.61$ at $D_i = 0$; reliability $\mathrm{Var}(A)/\mathrm{Var}(Z) \approx 0.77$ \\
