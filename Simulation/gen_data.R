@@ -73,6 +73,9 @@ draw_populations <- function(n) pmax(round(exp(rnorm(n, mean = 8.5, sd = 1.2))),
 # n_areas:  number of FSA postal code areas I (must be a perfect square; 400 = 20 x 20 grid)
 # gamma:    exposure model coefficients, gamma0 = 10 is the exposure mean; the signs of gamma1-4 against the outcome
 #           coefficients in cov_effects set the confounding (sum of products 0.375, an unadjusted log-slope bias of about 0.07)
+# spatial_in: where the CAR spatial effect phi enters. "exposure" (default): Ai = mean + phi + noise. "outcome": phi is added to the
+#           log-rate of the outcome and the exposure has no spatial term. rho_A is the CAR dependence either way
+# phi_sd_outcome: average marginal SD of phi on the log-rate scale when spatial_in = "outcome" (R2_phi is used when "exposure")
 # exposure_nonlin: 0 (default) = the exposure mean is linear in Xi. Otherwise adds
 #           exposure_nonlin * ((Xi1^2 - 1) + Xi2*Xi3) to the exposure mean (mean zero, uncorrelated with the linear
 #           terms), so a linear exposure model is misspecified. Adds 3*exposure_nonlin^2 to Var(Ai), which the R2_phi
@@ -95,6 +98,8 @@ data.generate <- function(seed = 1006092577,
                           n_areas = 400,
                           gamma = c(gamma0 = 10, gamma1 = -0.75, gamma2 = 0.75,
                                     gamma3 = -0.75, gamma4 = 0.75),
+                          spatial_in = c("exposure", "outcome"),
+                          phi_sd_outcome = 0.3,
                           exposure_nonlin = 0,
                           sigma_A = 1.5,
                           rho_A = 0.9,
@@ -110,6 +115,7 @@ data.generate <- function(seed = 1006092577,
                           xi = Inf) {
   if (!is.null(seed)) set.seed(seed)
   out_form <- match.arg(out_form)
+  spatial_in <- match.arg(spatial_in)
   error_model <- match.arg(error_model)
   I <- n_areas
 
@@ -131,7 +137,8 @@ data.generate <- function(seed = 1006092577,
   # var_X = sum(gamma^2) since each Xi has variance 1
   # sigma2_phi chosen so phi explains R2_phi of Var(Ai)
   var_X <- sum(gamma[c("gamma1","gamma2","gamma3","gamma4")]^2)
-  sigma2_phi <- compute_sigma2_phi(R2_phi, var_X, sigma_A^2, W, rho_A)
+  sigma2_phi <- if (spatial_in == "exposure") compute_sigma2_phi(R2_phi, var_X, sigma_A^2, W, rho_A) else
+    phi_sd_outcome^2 / mean(diag(solve(diag(rowSums(W)) - rho_A * W)))   # mean marginal variance of phi = phi_sd_outcome^2
   phi <- if (rho_A > 0) sim_car(W, rho_A, sigma2_phi) else rep(0, I)
 
   # Step 4: Latent true exposure
@@ -140,7 +147,7 @@ data.generate <- function(seed = 1006092577,
   mu_A <- gamma["gamma0"] + gamma["gamma1"]*Xi1 + gamma["gamma2"]*Xi2 +
     gamma["gamma3"]*Xi3 + gamma["gamma4"]*Xi4
   mu_A <- mu_A + exposure_nonlin * ((Xi1^2 - 1) + Xi2 * Xi3)
-  Ai <- rnorm(I, mean = mu_A + phi, sd = sigma_A)
+  Ai <- rnorm(I, mean = mu_A + if (spatial_in == "exposure") phi else 0, sd = sigma_A)
 
   # Step 5: Error-prone surrogate
   if (error_model == "A") {
@@ -160,7 +167,7 @@ data.generate <- function(seed = 1006092577,
   # Yi ~ Poisson(Ni * exp(eta_i)), intercept -3 gives ~5% baseline event rate
   cov_terms <- cov_effects(Xi1, Xi2, Xi3, Xi4)
   exp_terms <- erf_terms(Ai, Xi1, out_form)
-  log_mu_i <- log(Ni) + (-3) + exp_terms + cov_terms
+  log_mu_i <- log(Ni) + (-3) + exp_terms + cov_terms + if (spatial_in == "outcome") phi else 0
   mu_i <- exp(log_mu_i)
   Yi <- if (is.infinite(xi)) {
     rpois(I, lambda = mu_i)
@@ -180,6 +187,7 @@ data.generate <- function(seed = 1006092577,
     atten_i = atten_i,
     phi = phi,
     sigma2_phi = sigma2_phi,
+    spatial_in = spatial_in,
     out_form = out_form
   )
 }
@@ -188,29 +196,39 @@ data.generate <- function(seed = 1006092577,
 # True ERF
 # ============================================================
 
-# Two truths for the average potential outcome theta(a) = E[Yi(a)/Ni], the event rate per person in an area if
-# every area's exposure were set to a (areas count equally; rate * Ni gives expected counts):
-#     theta(a) = (1/I) sum_i r_i(a),   r_i(a) = exp(-3 + f(a, Xi1) + cov(Xi))   (average rate over areas)
-# Neither uses the realised Ai, Zi, phi, Di or the Poisson noise: the intervention sets A = a, and phi and Di
-# do not enter the outcome. Both truths use the same calculation (avg_rate) and differ only in the areas
-# it is applied to:
+# Two truths for the average potential outcome theta(a) = E[Yi(a)], the expected number of cases in an area if
+# every area's exposure were set to a (areas count equally; the average is over areas of the expected count):
+#     theta(a) = (1/I) sum_i Ni * r_i(a),   r_i(a) = exp(-3 + f(a, Xi1) + cov(Xi))   (rate times population)
+# This is what predict(fit, newdata with exposure set to a, type = "response") averaged over areas returns for a
+# Poisson model with a population offset. Neither truth uses the realised Ai, Zi, phi, Di or the Poisson noise: the
+# intervention sets A = a, and phi and Di do not enter the outcome. Both use the same calculation (avg_count) and
+# differ only in the areas it is applied to:
 #   true_erf:     this dataset's own areas (sample / finite-population truth, as in Josey et al. 2023)
 #   true_erf_pop: a very large simulated population of areas (the proposal's population estimand)
 
-avg_rate <- function(a, Xi1, Xi2, Xi3, Xi4, out_form) {
-  mean(exp(-3 + erf_terms(a, Xi1, out_form) + cov_effects(Xi1, Xi2, Xi3, Xi4)))
+avg_count <- function(a, Xi1, Xi2, Xi3, Xi4, Ni, out_form, phi = 0) {
+  mean(Ni * exp(-3 + erf_terms(a, Xi1, out_form) + cov_effects(Xi1, Xi2, Xi3, Xi4) + phi))
 }
 
 true_erf <- function(a.vals, data) {
   out_form <- data$out_form[1]
-  sapply(a.vals, function(a) avg_rate(a, data$Xi1, data$Xi2, data$Xi3, data$Xi4, out_form))
+  phi <- if (!is.null(data$spatial_in) && data$spatial_in[1] == "outcome") data$phi else 0   # realised spatial effect in this dataset
+  sapply(a.vals, function(a) avg_count(a, data$Xi1, data$Xi2, data$Xi3, data$Xi4, data$Ni, out_form, phi))
 }
 
-# Population version: draws n_mc areas (confounders only; Ni no longer enters the truth) and applies the same calculation
-# but from many samples to reduce Monte Carlo error 
-# so the truth is identical across runs.
-true_erf_pop <- function(a.vals, out_form, n_mc = 2e6, seed = 5155) {
+# Population version: draws n_mc areas (confounders and populations) and applies the same calculation
+# but from many samples to reduce Monte Carlo error, with a fixed seed so the truth is identical across runs.
+# If the spatial effect is in the outcome (spatial_in = "outcome", with the same n_areas, rho_A and phi_sd_outcome as data.generate),
+# the expected count is multiplied by mean_i exp(Var(phi_i) / 2), since E[exp(phi_i)] = exp(Var(phi_i) / 2).
+true_erf_pop <- function(a.vals, out_form, n_mc = 2e6, seed = 5155,
+                         spatial_in = "exposure", n_areas = 400, rho_A = 0.9, phi_sd_outcome = 0.3) {
   set.seed(seed)
   Xc <- draw_confounders(n_mc)
-  sapply(a.vals, function(a) avg_rate(a, Xc$Xi1, Xc$Xi2, Xc$Xi3, Xc$Xi4, out_form))
+  Ni <- draw_populations(n_mc)
+  spatial_factor <- 1
+  if (spatial_in == "outcome" && rho_A > 0) {
+    W <- make_adj_matrix(n_areas); dq <- diag(solve(diag(rowSums(W)) - rho_A * W))
+    spatial_factor <- mean(exp(phi_sd_outcome^2 * dq / mean(dq) / 2))
+  }
+  spatial_factor * sapply(a.vals, function(a) avg_count(a, Xc$Xi1, Xc$Xi2, Xc$Xi3, Xc$Xi4, Ni, out_form))
 }

@@ -1,8 +1,8 @@
-# Summarises output/stan/latent_replicates.rds: bias, RMSE and 95% coverage (population truth and dataset truth)
+# Summarises output/stan/latent_known_error/latent_replicates.rds: bias, RMSE and 95% coverage (population truth and dataset truth)
 # for Oracle, Naive and Latent, plus parameter recovery and sampler diagnostics.
-# Run from the Simulation/ folder:  Rscript stan/scripts/summarize_latent_replicates.R
+# Run from the Simulation/ folder:  Rscript stan/scripts/replicates/summarize_latent_replicates.R
 library(ggplot2)
-out <- readRDS("output/stan/latent_replicates.rds")
+out <- readRDS("output/stan/latent_known_error/latent_replicates.rds")
 raw <- out$summary
 n <- length(unique(raw$rep))
 cat("Replicates:", n, "\n")
@@ -16,7 +16,7 @@ summ <- do.call(rbind, lapply(split(raw, list(raw$method, raw$a), drop = TRUE), 
              ci_width = mean(d$hi - d$lo))
 }))
 summ <- summ[order(summ$method, summ$a), ]; rownames(summ) <- NULL
-write.csv(summ, "output/stan/latent_replicates_summary.csv", row.names = FALSE)
+write.csv(summ, "output/stan/latent_known_error/latent_replicates_summary.csv", row.names = FALSE)
 
 cat("\nAveraged over the grid (coverage SE about", round(sqrt(.95 * .05 / n), 3), "per grid value):\n")
 print(aggregate(cbind(abs_rel_bias_pct = abs(rel_bias_pct), rmse, coverage_pop, coverage_sample, ci_width) ~ method,
@@ -44,5 +44,5 @@ p_cov <- ggplot(summ, aes(a, coverage_pop, colour = method)) + geom_hline(yinter
   labs(x = "exposure a", y = "95% interval coverage", colour = NULL,
        title = sprintf("Latent model: coverage over %d replicates (population truth)", n)) +
   theme_bw() + theme(legend.position = "bottom")
-ggsave("output/stan/latent_replicates_bias.png", p_bias, width = 7, height = 4.5, dpi = 130)
-ggsave("output/stan/latent_replicates_coverage.png", p_cov, width = 7, height = 4.5, dpi = 130)
+ggsave("output/stan/latent_known_error/latent_replicates_bias.png", p_bias, width = 7, height = 4.5, dpi = 130)
+ggsave("output/stan/latent_known_error/latent_replicates_coverage.png", p_cov, width = 7, height = 4.5, dpi = 130)

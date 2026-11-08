@@ -1,10 +1,10 @@
 library(ggplot2)
 
-# Reads output/replicates_<scenario>.rds (from sim_replicates.R) and computes bias, RMSE and 95%
+# Reads output/bart/replicates_<scenario>.rds (from sim_replicates.R) and computes bias, RMSE and 95%
 # credible-interval coverage.
 # Truth = population ERF (true_erf_pop); coverage against the per-replicate sample truth is also reported.
 # Optional upper limit on the reported nonlinear grid, report_max_nonlinear (15 = top of the grid, i.e. no limit).
-output_dir <- "output"
+output_dir <- "output/bart"
 report_max_nonlinear <- 15
 
 forms <- c("linear", "quadratic", "nonlinear")

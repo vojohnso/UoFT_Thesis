@@ -1,8 +1,7 @@
 # Latent exposure: the true exposure A is unknown; only the surrogate Z is observed, with a known error model.
 # Test data: no spatial effect, no slope, constant error variance, so the fitted model is exactly right.
-# Run from the Simulation/ folder:  source("stan/scripts/run_latent_exposure.R")
+# Run from the Simulation/ folder:  source("stan/scripts/single_fit/run_latent_exposure.R")
 library(rstan)
-rstan_options(auto_write = TRUE)
 
 source("gen_data.R")
 source("stan/R/prep_data.R"); source("stan/R/compile_model.R")
@@ -25,7 +24,7 @@ naive <- fit_draws(known_model, make_stan_data(sim, "naive", df = 1, a_grid = a_
 # Latent model: the latent exposures start at the surrogate Z (random starts around 0 give chains that disagree)
 dat_latent <- make_stan_data_latent(sim, sigma_Z, a_grid)
 init_latent <- function() list(beta0 = -3, beta_A = 0, beta_X = rep(0, 4), gamma0 = mean(sim$Zi),
-                               gamma = rep(0, 4), sigma_A = 1, A = dat_latent$Z)
+                               gamma_A = rep(0, 4), sigma_A = 1, A = dat_latent$Z)
 latent <- fit_draws(latent_model, dat_latent, "theta", init = init_latent)
 
 summ <- function(th) data.frame(mean = colMeans(th), lo = apply(th, 2, quantile, 0.025), hi = apply(th, 2, quantile, 0.975))
@@ -48,8 +47,8 @@ truth <- rbind(data.frame(a = a_grid, truth = "population truth", value = comp$t
                data.frame(a = a_grid, truth = "this dataset's truth", value = comp$truth_sample))
 p1 <- plot_erf(est, truth, title = "Latent exposure with a known error model",
                subtitle = "Linear scenario, no spatial effect, constant error variance (reliability about 0.82)")
-dir.create("output/stan", recursive = TRUE, showWarnings = FALSE)
-ggsave("output/stan/latent_exposure_erf.png", p1, width = 7, height = 5, dpi = 130)
+dir.create("output/stan/latent_known_error", recursive = TRUE, showWarnings = FALSE)
+ggsave("output/stan/latent_known_error/latent_exposure_erf.png", p1, width = 7, height = 5, dpi = 130)
 print(p1)
 
 # Plot 2: how well the latent exposures are recovered (needs the model to save A as a transformed parameter)
@@ -60,6 +59,6 @@ if ("A" %in% latent$fit@model_pars) {
   p2 <- ggplot(d, aes(true_A, value)) + geom_point(alpha = 0.4) + geom_abline(colour = "red") +
     facet_wrap(~panel) + labs(x = "true exposure A", y = NULL, title = "Recovery of the latent exposures",
                               subtitle = "Red line: estimate = truth") + theme_bw(base_size = 12)
-  ggsave("output/stan/latent_exposure_recovery.png", p2, width = 9, height = 4.2, dpi = 130)
+  ggsave("output/stan/latent_known_error/latent_exposure_recovery.png", p2, width = 9, height = 4.2, dpi = 130)
   print(p2)
 }

@@ -62,7 +62,7 @@ generated quantities {
     vector[N] w = dirichlet_rng(rep_vector(1, N));   // Bayesian bootstrap weights over areas
     vector[N] xb = X * beta_X;
     for (g in 1:G) {
-      theta[g] = dot_product(w, exp(beta0 + kappa * beta_Z1 * a_grid[g] + xb));
+      theta[g] = dot_product(w, pop .* exp(beta0 + kappa * beta_Z1 * a_grid[g] + xb));
     }
   }
 }

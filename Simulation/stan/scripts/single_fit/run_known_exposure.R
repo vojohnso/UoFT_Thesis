@@ -1,7 +1,6 @@
 # Known exposure: Poisson outcome model with the true exposure A observed (no measurement error), g-computation inside Stan.
-# Run from the Simulation/ folder:  source("stan/scripts/run_known_exposure.R")
+# Run from the Simulation/ folder:  source("stan/scripts/single_fit/run_known_exposure.R")
 library(rstan)
-rstan_options(auto_write = TRUE)
 
 source("gen_data.R")
 source("estimators.R")
@@ -58,6 +57,6 @@ est$scenario <- factor(est$scenario, levels = names(df_by_form))
 truth$scenario <- factor(truth$scenario, levels = names(df_by_form))
 p <- plot_erf(est, truth, title = "Known exposure: oracle Poisson model in Stan",
               subtitle = "Posterior mean and 95% band (Stan), BART oracle, and the true curves")
-dir.create("output/stan", recursive = TRUE, showWarnings = FALSE)
-ggsave("output/stan/known_exposure_erf.png", p, width = 11, height = 4.2, dpi = 130)
+dir.create("output/stan/known_exposure", recursive = TRUE, showWarnings = FALSE)
+ggsave("output/stan/known_exposure/known_exposure_erf.png", p, width = 11, height = 4.2, dpi = 130)
 print(p)

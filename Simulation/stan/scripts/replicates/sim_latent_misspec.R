@@ -1,13 +1,12 @@
 # Misspecified exposure model: what happens to the latent model when the exposure is NOT linear in the confounders
-# but the Stan model assumes it is (A ~ normal(gamma0 + X * gamma, sigma_A)).
+# but the Stan model assumes it is (A ~ normal(gamma0 + X * gamma_A, sigma_A)).
 # Each replicate is a pair of datasets with the same confounders, populations and noise, differing only in the
 # exposure mean: linear (the latent model is exactly right) and nonlinear (exposure_nonlin = 0.5, misspecified).
 # Fits: latent model on both, plus oracle and naive on the nonlinear dataset (the benchmarks).
 # One master seed; the replicate seeds are drawn from it up front. Linear outcome scenario, no spatial term,
 # error Z = A + N(0, 1) with sigma_Z known.
-# Run from the Simulation/ folder:  Rscript stan/scripts/sim_latent_misspec.R [n_reps=30]
+# Run from the Simulation/ folder:  Rscript stan/scripts/replicates/sim_latent_misspec.R [n_reps=30]
 library(rstan)
-rstan_options(auto_write = TRUE)
 source("gen_data.R"); source("stan/R/prep_data.R"); source("stan/R/compile_model.R")
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -29,7 +28,7 @@ fit_theta <- function(mod, dat, seed, init = "random") {
 }
 fit_latent <- function(sim, seed) {
   dat <- make_stan_data_latent(sim, sigma_Z, a_grid)
-  init <- function() list(beta0 = -3, beta_A = 0, beta_X = rep(0, 4), gamma0 = mean(sim$Zi), gamma = rep(0, 4),
+  init <- function() list(beta0 = -3, beta_A = 0, beta_X = rep(0, 4), gamma0 = mean(sim$Zi), gamma_A = rep(0, 4),
                           sigma_A = 1, A = dat$Z)
   f <- fit_theta(latent_mod, dat, seed, init)
   f$A_rmse <- sqrt(mean((colMeans(rstan::extract(f$fit, "A")$A) - sim$Ai)^2))
@@ -60,8 +59,8 @@ run_one <- function(r) {
 res <- vector("list", n_reps)
 for (r in seq_len(n_reps)) { res[[r]] <- run_one(r); cat("replicate", r, "of", n_reps, "done\n") }
 res <- do.call(rbind, res)
-dir.create("output/stan", recursive = TRUE, showWarnings = FALSE)
-saveRDS(res, "output/stan/latent_misspec.rds")
+dir.create("output/stan/latent_known_error", recursive = TRUE, showWarnings = FALSE)
+saveRDS(res, "output/stan/latent_known_error/latent_misspec.rds")
 
 summ <- do.call(rbind, lapply(split(res, list(res$method, res$a)), function(d)
   data.frame(method = d$method[1], a = d$a[1], rel_bias_pct = 100 * mean(d$est - d$true) / d$true[1],
@@ -71,4 +70,4 @@ extra <- aggregate(cbind(A_rmse, sigma_A) ~ method, res[!is.na(res$A_rmse), ], m
 cat("\nAveraged over the grid, ", n_reps, " replicates (truth sigma_A about 1.5 for the linear data; Z alone: RMSE of A about ",
     round(mean(res$Z_rmse), 2), "):\n", sep = "")
 print(merge(tab, extra, all.x = TRUE), digits = 3)
-write.csv(summ, "output/stan/latent_misspec_summary.csv", row.names = FALSE)
+write.csv(summ, "output/stan/latent_known_error/latent_misspec_summary.csv", row.names = FALSE)

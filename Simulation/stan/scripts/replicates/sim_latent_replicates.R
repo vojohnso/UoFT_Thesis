@@ -1,11 +1,10 @@
 # Replicates for the latent exposure model: Oracle, Naive and Latent (all Stan) on the linear scenario with
 # no spatial effect and constant, known error variance (so the latent model is exactly right).
-# Run from the Simulation/ folder:  Rscript stan/scripts/sim_latent_replicates.R [n_reps=50]
+# Run from the Simulation/ folder:  Rscript stan/scripts/replicates/sim_latent_replicates.R [n_reps=50]
 # One seed for the whole study: set.seed() once, then the replicates are a plain loop that keeps drawing from that
 # stream (data, initial values, and the seed handed to each Stan fit). The 4 chains of each fit run in parallel.
 # To reproduce replicate r on its own you have to rerun the loop from the start.
 library(rstan)
-rstan_options(auto_write = TRUE)
 
 source("gen_data.R")
 source("stan/R/prep_data.R"); source("stan/R/compile_model.R")
@@ -36,7 +35,7 @@ run_one <- function(rep_id) {
   seed <- sample.int(.Machine$integer.max, 1)   # Stan seed for this replicate, drawn from the same stream
   dat_lat <- make_stan_data_latent(sim, sigma_Z, a_grid)
   init_latent <- function() list(beta0 = -3, beta_A = 0, beta_X = rep(0, 4), gamma0 = mean(sim$Zi),
-                                 gamma = rep(0, 4), sigma_A = 1, A = dat_lat$Z)
+                                 gamma_A = rep(0, 4), sigma_A = 1, A = dat_lat$Z)
   fits <- list(
     oracle = fit_theta(known_mod, make_stan_data(sim, "oracle", df = 1, a_grid = a_grid), seed),
     naive = fit_theta(known_mod, make_stan_data(sim, "naive", df = 1, a_grid = a_grid), seed),
@@ -69,6 +68,6 @@ out <- list(summary = do.call(rbind, lapply(res, `[[`, "summary")),
             diag = do.call(rbind, lapply(res, `[[`, "diag")),
             latent_pars = do.call(rbind, lapply(res, `[[`, "latent_pars")),
             rep = which(ok), truth_beta_A = 0.10, truth_sigma_A = 1.5)
-dir.create("output/stan", recursive = TRUE, showWarnings = FALSE)
-saveRDS(out, "output/stan/latent_replicates.rds")
+dir.create("output/stan/latent_known_error", recursive = TRUE, showWarnings = FALSE)
+saveRDS(out, "output/stan/latent_known_error/latent_replicates.rds")
 cat("done in", round(difftime(Sys.time(), t0, units = "mins"), 1), "min\n")

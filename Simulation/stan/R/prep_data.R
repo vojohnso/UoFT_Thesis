@@ -67,3 +67,12 @@ make_stan_data_latent_D_priors <- function(sim, a_grid = seq(5, 15, by = 1)) {
   d$sigma_Z <- NULL
   c(d, car_structure(nrow(sim)), list(D = as.numeric(sim$Di)))
 }
+
+# Spline version of the anchored model: the basis is built in Stan from the latent A, so only the knots are passed.
+# Boundary knots at the 5% / 95% quantiles of Z, interior knots at equal-spaced quantiles; df = number of basis columns.
+make_stan_data_latent_D_spline <- function(sim, a_grid = seq(5, 15, by = 1), df = 3) {
+  d <- make_stan_data_latent_D_priors(sim, a_grid)
+  centre <- mean(d$Z); scale <- sd(d$Z)
+  q <- quantile(d$Z, c(0.05, seq(0, 1, length.out = df + 1)[-c(1, df + 1)], 0.95), names = FALSE)
+  c(d, list(K = df + 1L, knots = (q - centre) / scale, centre = centre, scale = scale))
+}

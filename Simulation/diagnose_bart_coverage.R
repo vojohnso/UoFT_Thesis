@@ -13,7 +13,7 @@ n_reps <- if (length(args) >= 1) as.integer(args[1]) else 100
 n_cores <- if (length(args) >= 2) as.integer(args[2]) else max(1, detectCores() - 1)
 base_seed <- 1006092577
 a_grid <- seq(5, 15, by = 1)
-pop_truth <- true_erf_pop(a_grid, "quadratic")
+pop_truth <- true_erf_pop(a_grid, "quadratic", spatial_in = "outcome")   # spatial effect in the outcome, as in data.generate() below
 
 # bart_gcomp from estimators.R, oracle only, with an optional weight vector for the noise variance
 fit_variant <- function(sim, w = NULL) {
@@ -25,13 +25,13 @@ fit_variant <- function(sim, w = NULL) {
   fit <- if (is.null(w)) gbart(X, y, x.test = Xt, type = "wbart", ndpost = 1000, nskip = 500, printevery = 0)
          else gbart(X, y, x.test = Xt, type = "wbart", w = w, ndpost = 1000, nskip = 500, printevery = 0)
   bb <- rdirichlet(1000, rep(1, n))
-  th <- sapply(seq_along(a_grid), function(g) rowSums(bb * exp(fit$yhat.test[, ((g - 1) * n + 1):(g * n)])))
+  th <- sapply(seq_along(a_grid), function(g) rowSums(bb * sweep(exp(fit$yhat.test[, ((g - 1) * n + 1):(g * n)]), 2, sim$Ni, "*")))   # expected counts
   data.frame(a = a_grid, est = colMeans(th), lo = apply(th, 2, quantile, 0.025), hi = apply(th, 2, quantile, 0.975))
 }
 
 run_one <- function(r) {
-  sim <- data.generate(seed = base_seed + r, out_form = "quadratic")
-  big <- data.generate(seed = base_seed + r, n_areas = 1600, out_form = "quadratic")
+  sim <- data.generate(seed = base_seed + r, out_form = "quadratic", spatial_in = "outcome")
+  big <- data.generate(seed = base_seed + r, n_areas = 1600, out_form = "quadratic", spatial_in = "outcome")
   invisible(capture.output({
     out <- list(base = fit_variant(sim), weights = fit_variant(sim, w = pmax(sim$Yi, 0.5)), n1600 = fit_variant(big))
   }))
@@ -40,14 +40,14 @@ run_one <- function(r) {
 
 res <- mclapply(seq_len(n_reps), run_one, mc.cores = n_cores)
 res <- do.call(rbind, res[!sapply(res, inherits, "try-error")])
-dir.create("output/diagnose_bart", showWarnings = FALSE)
-saveRDS(res, "output/diagnose_bart/coverage_variants.rds")
+dir.create("output/bart/diagnose", recursive = TRUE, showWarnings = FALSE)
+saveRDS(res, "output/bart/diagnose/coverage_variants.rds")
 cat("replicates used:", length(unique(res$rep)), "\n")
 tab <- do.call(rbind, lapply(split(res, list(res$variant, res$a)), function(d)
   data.frame(variant = d$variant[1], a = d$a[1], coverage = mean(d$lo <= d$true & d$true <= d$hi),
              rel_bias_pct = 100 * mean(d$est - d$true) / d$true[1], rmse = sqrt(mean((d$est - d$true)^2)),
              half_width = mean(d$hi - d$lo) / 2)))
 tab$ratio_halfwidth_to_rmse <- tab$half_width / tab$rmse   # about 2 for a calibrated 95% interval
-write.csv(tab, "output/diagnose_bart/coverage_variants.csv", row.names = FALSE)
+write.csv(tab, "output/bart/diagnose/coverage_variants.csv", row.names = FALSE)
 print(reshape(tab[, c("variant", "a", "coverage")], idvar = "a", timevar = "variant", direction = "wide"), digits = 3)
 print(aggregate(cbind(coverage, ratio_halfwidth_to_rmse) ~ variant, tab, mean), digits = 3)

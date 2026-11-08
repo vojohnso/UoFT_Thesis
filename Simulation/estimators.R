@@ -7,9 +7,10 @@ library(gtools)
 
 # Fits nonparametric Bayesian g-computation using BART as the outcome model.
 # Outcome modelled on log(Yi/Ni) which is the log event rate per person.
-# Predictions are exponentiated to recover the rate scale: theta(a) = E[Yi(a)/Ni].
-# Bayesian bootstrap applies Dirichlet weights over areas per posterior draw,
-# (no Ni weights: theta(a) is the average rate over areas, matching the plain mean in true_erf).
+# Predictions are exponentiated to recover the rate and multiplied by Ni to get expected counts:
+# theta(a) = E[Yi(a)], the expected number of cases per area if every area had exposure a.
+# Bayesian bootstrap applies Dirichlet weights over areas per posterior draw
+# (plain weights: every area counts equally, matching the plain mean of Ni * rate in true_erf).
 #
 # data:       output of data.generate()
 # a_grid:     exposure values at which to evaluate the ERF
@@ -48,8 +49,8 @@ bart_gcomp <- function(data,
   bart_fit <- gbart(X_train, Y_train, x.test = X_test,
                     type = "wbart", ndpost = ndpost, nskip = nskip, printevery = 0)
 
-  # G-computation: for each draw m and grid point g, compute the Dirichlet-weighted mean rate
-  # Bayesian bootstrap draws Dirichlet weights then computes weighted mean of rates
+  # G-computation: for each draw m and grid point g, compute the Dirichlet-weighted mean expected count (Ni * rate)
+  # Bayesian bootstrap draws Dirichlet weights then computes weighted mean of the counts
   M <- ndpost
   theta_draws <- matrix(NA, nrow = M, ncol = n_grid)
   colnames(theta_draws) <- paste0("a=", a_grid)
@@ -59,7 +60,8 @@ bart_gcomp <- function(data,
   for (g in seq_len(n_grid)) {
     col_idx <- ((g - 1) * n + 1):(g * n) # block of columns used in yhat - one column per i per a 
     rate_pred <- exp(bart_fit$yhat.test[, col_idx])  # converted into rate scale
-    theta_draws[, g] <- rowSums(bb_w * rate_pred)
+    count_pred <- sweep(rate_pred, 2, data$Ni, "*")   # expected count = rate * population (like predict(type = "response") with the offset)
+    theta_draws[, g] <- rowSums(bb_w * count_pred)
   }
 
   theta_summary <- data.frame(
@@ -107,7 +109,7 @@ make_erf_plot <- function(oracle, naive, true_theta, a_grid, title) {
                                  "Oracle (true A)" = "#2166ac",
                                  "Naive (surrogate Z)" = "#d6604d")) +
     labs(x = expression(paste("PM"[2.5], " (", mu, "g/m"^3, ")")),
-         y = expression(theta(a) == E*"["*Y[i](a)/N[i]*"]"),
+         y = expression(theta(a) == E*"["*Y[i](a)*"]"),
          colour = NULL, fill = NULL, title = title,
          subtitle = "Ribbons show 95% posterior credible intervals") +
     theme_bw(base_size = 13) +

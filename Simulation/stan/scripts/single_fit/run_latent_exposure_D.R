@@ -4,18 +4,17 @@
 # beta_Z1 sets the scale of A and is not identified - chains dont agree
 
 library(rstan)
-rstan_options(auto_write = TRUE)
 source("gen_data.R"); source("stan/R/prep_data.R"); source("stan/R/compile_model.R")
 
 a_grid <- seq(5, 15, by = 1)
 n_areas <- 100      # 10 x 10 grid: the plain CAR prior is too slow at 400 areas
 truth_pars <- c(bZ1 = 1, bZ2 = 0.5, sigma_Z = 1)
-sim <- data.generate(seed = 1006092577, n_areas = n_areas, out_form = "linear",                # default spatial exposure (rho_A = 0.9, R2_phi = 0.2)
+sim <- data.generate(seed = 1006092577, n_areas = n_areas, out_form = "linear", spatial_in = "outcome",   # spatial effect on the outcome (rho_A = 0.9)
                      bZ1 = truth_pars["bZ1"], bZ2 = truth_pars["bZ2"], sigma_Z = truth_pars["sigma_Z"])
 ts <- true_erf(a_grid, sim)
 
 init_fun <- function(dat, free_error = FALSE) function() {
-  out <- list(beta0 = -3, beta_A = 0, beta_X = rep(0, 4), gamma0 = mean(dat$Z), gamma = rep(0, 4), sigma_A = 1,
+  out <- list(beta0 = -3, beta_A = 0, beta_X = rep(0, 4), gamma0 = mean(dat$Z), gamma_A = rep(0, 4), sigma_A = 1,
               A = dat$Z)
   if (free_error) out <- c(out, list(beta_Z1 = 1, beta_Z2 = 0, sigma_Z = 1, phi = rep(0, dat$N), sigma_phi = 1, rho = 0.5))
   out

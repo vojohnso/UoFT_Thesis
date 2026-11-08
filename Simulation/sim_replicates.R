@@ -6,25 +6,25 @@ source("estimators.R")
 # Replicate r uses seed base_seed + r, so each replicate is reproducible on its own and the
 # result does not depend on the number of cores. The three scenarios use the same seeds, so they
 # share covariates, exposure, error and populations and differ only in the outcome shape.
-# Data settings (areas, spatial effect, error model) are the defaults in data.generate().
+# The spatial effect is in the outcome (spatial_in = "outcome"); the other settings (areas, rho_A, error model) are the defaults in data.generate().
 args <- commandArgs(trailingOnly = TRUE)
 n_reps <- if (length(args) >= 1) as.integer(args[1]) else 200
 n_cores <- if (length(args) >= 2) as.integer(args[2]) else max(1, detectCores() - 1)
 base_seed <- 1006092577
 
-output_dir <- "output"
-dir.create(output_dir, showWarnings = FALSE)
+output_dir <- "output/bart"
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 a_grid <- seq(5, 15, by = 1)
 forms <- c("linear", "quadratic", "nonlinear")
 methods <- c("naive", "oracle")
 
 # Population truth, fixed for each scenario 
-pop_truth <- lapply(setNames(forms, forms), function(f) true_erf_pop(a_grid, f))
+pop_truth <- lapply(setNames(forms, forms), function(f) true_erf_pop(a_grid, f, spatial_in = "outcome"))
 
 # One replicate: summary table (mean and 95% interval at each grid value) and the posterior draws 
 run_one <- function(rep_id, form) {
-  sim <- data.generate(seed = base_seed + rep_id, out_form = form)
+  sim <- data.generate(seed = base_seed + rep_id, out_form = form, spatial_in = "outcome")
   true_sample <- true_erf(a_grid, sim)
   fits <- list()
   invisible(capture.output({

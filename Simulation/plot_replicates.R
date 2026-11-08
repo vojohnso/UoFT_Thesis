@@ -1,12 +1,12 @@
 library(ggplot2)
 
-# Extra plots from the saved replicate results (output/replicates_<scenario>.rds):
+# Extra plots from the saved replicate results (output/bart/replicates_<scenario>.rds):
 #  1. fan plot: for each method, the mean estimate and the middle 95% of estimates across replicates
 #  2. contrasts: bias and coverage of two contrasts computed from the posterior draws
 # Contrasts use the nearest integer grid values: extreme vs typical = theta(15) - theta(10)
 # (the 99th and 50th percentiles of the exposure are about 15.4 and 10) and interquartile = theta(12) - theta(8)
 # (the 75th and 25th percentiles are about 11.6 and 8.4).
-output_dir <- "output"
+output_dir <- "output/bart"
 forms <- c("linear", "quadratic", "nonlinear")
 cols <- c(naive = "#d6604d", oracle = "#2166ac")
 res <- lapply(setNames(forms, forms), function(f) readRDS(file.path(output_dir, sprintf("replicates_%s.rds", f))))
