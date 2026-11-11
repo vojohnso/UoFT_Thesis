@@ -1,6 +1,6 @@
-# Prior distributions of the anchored latent model against the true values used in the simulation, to show where the prior
+# Prior distributions of the reduced latent model (gcomp_latent_exposure_D_reduced_sparse.stan) against the true values used in the simulation, to show where the prior
 # supports the truth. Writes output/stan/checks/prior_vs_truth.png and .csv
-# Priors follow stan/models/gcomp_latent_exposure_D_anchored.stan (sigma_A has the lower bound 0.5; the half-Cauchy priors are
+# Identified parameters have non-informative priors; sigma_Z (not identified) is shown under its two cases (informative and wild guess; a third case fixes it at the truth, a point mass not drawn here). (sigma_A has the lower bound 0.5; the half-Cauchy priors are
 # truncated at 0, so their densities are doubled)
 library(ggplot2)
 source("gen_data.R")
@@ -13,6 +13,7 @@ trunc_pri <- function(d, p, lo) list(d = function(x) ifelse(x >= lo, d(x) / (1 -
 sA <- trunc_pri(function(x) dcauchy(x), function(x) pcauchy(x), 0.5)
 sP <- trunc_pri(function(x) dcauchy(x), function(x) pcauchy(x), 0)
 sZ <- trunc_pri(function(x) dnorm(x, 1, 0.3), function(x) pnorm(x, 1, 0.3), 0)
+sZw <- trunc_pri(function(x) dnorm(x, 0, 5), function(x) pnorm(x, 0, 5), 0)
 
 priors <- list(
   list(name = "beta0", label = "normal(0, 10)", d = function(x) dnorm(x, 0, 10), p = function(x) pnorm(x, 0, 10), range = c(-30, 30), truth = -4),
@@ -24,15 +25,17 @@ priors <- list(
   list(name = "sigma_phi", label = "cauchy(0, 1), >= 0", d = sP$d, p = sP$p, range = c(0, 3), truth = sigma_phi_true),
   list(name = "rho", label = "beta(2, 1)", d = function(x) dbeta(x, 2, 1), p = function(x) pbeta(x, 2, 1), range = c(0, 1), truth = 0.9),
   list(name = "beta_Z2", label = "normal(0, 10)", d = function(x) dnorm(x, 0, 10), p = function(x) pnorm(x, 0, 10), range = c(-30, 30), truth = 0.5),
-  list(name = "sigma_Z", label = "normal(1, 0.3), >= 0", d = sZ$d, p = sZ$p, range = c(0, 3), truth = 1))
+  list(name = "sigma_Z", label = "informative: normal(1, 0.3), >= 0", d = sZ$d, p = sZ$p, range = c(0, 3), truth = 1),
+  list(name = "sigma_Z", label = "wild guess: normal(0, 5), >= 0", d = sZw$d, p = sZw$p, range = c(0, 10), truth = 1))
 
 curves <- do.call(rbind, lapply(priors, function(pr) { x <- seq(pr$range[1], pr$range[2], length.out = 400)
-  data.frame(param = paste0(pr$name, "\n", pr$label), x = x, density = pr$d(x)) }))
-truths <- do.call(rbind, lapply(priors, function(pr) data.frame(param = paste0(pr$name, "\n", pr$label), truth = pr$truth)))
+  data.frame(param = paste0(pr$name, "\n", pr$label),
+             prior = pr$label, x = x, density = pr$d(x)) }))
+truths <- unique(do.call(rbind, lapply(priors, function(pr) data.frame(param = paste0(pr$name, "\n", pr$label), truth = pr$truth))))
 curves$param <- factor(curves$param, levels = unique(curves$param)); truths$param <- factor(truths$param, levels = levels(curves$param))
 
-pl <- ggplot(curves, aes(x, density)) + geom_line() + geom_vline(data = truths, aes(xintercept = truth), colour = "red", linetype = "dashed") +
-  facet_wrap(~param, scales = "free", ncol = 3) + labs(x = NULL, y = "prior density", title = "Priors of the anchored latent model against the true values",
+pl <- ggplot(curves, aes(x, density)) + geom_line() + geom_vline(data = truths, aes(xintercept = truth), colour = "red", linetype = "dashed", inherit.aes = FALSE) +
+  facet_wrap(~param, scales = "free", ncol = 3) + labs(x = NULL, y = "prior density", title = "Priors of the reduced latent model against the true values",
   subtitle = "Red dashed = true value used in the simulation") + theme_bw(base_size = 11)
 dir.create("output/stan/checks", recursive = TRUE, showWarnings = FALSE)
 ggsave("output/stan/checks/prior_vs_truth.png", pl, width = 11, height = 10, dpi = 120)

@@ -1,8 +1,7 @@
-// Reduced latent exposure model (slope on A fixed at 1, so fewer parameters to estimate) with the CAR prior in the sparse form given by Joseph (2016).
-// Latent exposure with CAR effect phi on the outcome; error model Z = A + beta_Z2 * D + noise (slope anchored at 1),
-// sigma_Z prior set by the data (sigma_Z_mean, sigma_Z_sd): wild guess normal(0, 5) or oracle normal(1, 0.3); sigma_A >= 0.5. Initialise A = Z in R.
-// Comments in the priors give the true values from data.generate() and whether the data identify the parameter
-// (see Additional/identified_combinations.tex).
+// Reduced latent exposure model (beta_Z1 = 1 => fewer parameters to estimate) with the CAR prior in the sparse form 
+// Latent exposure with CAR effect phi on the outcome; error model Z = A + beta_Z2 * D + noise,
+// sigma_Z prior set by the data (sigma_Z_mean, sigma_Z_sd): wild guess normal(0, 5) or oracle normal(1, 0.3). Initialise A = Z in R.
+
 functions {
   // log density of phi ~ CAR(precision tau * (D - alpha * W)), up to a constant (the sum of log D is dropped)
   real sparse_car_lpdf(vector phi, real tau, real alpha, array[,] int W_sparse, vector D_sparse, vector lambda, int n, int W_n) {
