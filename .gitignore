@@ -1,1 +1,14 @@
 Simulation/output/
+
+# macOS / R / LaTeX clutter
+.DS_Store
+**/.DS_Store
+Rplots.pdf
+.Rhistory
+.RData
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz

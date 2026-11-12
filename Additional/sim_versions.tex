@@ -97,8 +97,8 @@ $X_{i2} = (G - 2)/\sqrt{2}$ with $G \sim \text{Gamma}(2, 1)$ is right-skewed (sk
 mean 0 and variance 1, so the exposure-variance bookkeeping below is unchanged. The skewed one is the
 confounder with the smallest outcome coefficient, which limits how much its heavy tail inflates the gap
 between a dataset's covariate-averaged ERF and the population value
-\item \textbf{Population sizes:} $\log(N_i) \sim \mathcal{N}(8.5, 1.2^2)$, used only as the Poisson offset
-(they do not enter the estimand), giving
+\item \textbf{Population sizes:} $\log(N_i) \sim \mathcal{N}(8.5, 1.2^2)$, used as the Poisson offset and
+in the expected count that defines the estimand, giving
 median $\approx 4{,}900$, 5th percentile $\approx 600$, 95th percentile $\approx 40{,}000$.
 Motivated by Statistics Canada 2021 Census: Ontario has $\approx 500$ FSAs with total
 population 14,223,942, ranging from dense urban FSAs in Toronto to sparse rural FSAs in
@@ -347,21 +347,22 @@ assumption by construction.
 Following Josey et al.\ (2023), the target estimand is the marginal exposure-response
 function (ERF):
 \[
-\theta(a) \equiv \mathbb{E}[Y_i(a)/N_i],
+\theta(a) \equiv \mathbb{E}[Y_i(a)],
 \]
-the average event rate per person across areas, where $Y_i(a)$ is the count that would occur in
+the expected number of cases in an area, averaged over areas, where $Y_i(a)$ is the count that would occur in
 area $i$ if, possibly contrary to what is observed, it had received exposure level $A_i = a$.
-Every area counts equally; expected counts are recovered by multiplying the rate by $N_i$. The causal contrast
+Every area counts equally. This is what \texttt{predict(fit, newdata, type = "response")} returns for a
+Poisson model with a population offset, averaged over areas; the per-person rate is obtained by dividing by $N_i$. The causal contrast
 between two exposure levels is $\Delta(a_1, a_0) = \theta(a_1) - \theta(a_0)$. Under
 the identifying assumptions in Section~3, the ERF is identified by the g-formula:
 \[
-\theta(a) = \mathbb{E}\!\left[\mathbb{E}[Y_i / N_i \mid A_i = a, \mathbf{X}_i]\right]
-= \mathbb{E}\!\left[\exp(-3 + f(a, X_{i1}) + \mathbf{X}_i^\top\boldsymbol{\beta})\right].
+\theta(a) = \mathbb{E}\!\left[\mathbb{E}[Y_i \mid A_i = a, \mathbf{X}_i, N_i]\right]
+= \mathbb{E}\!\left[N_i \exp(-3 + f(a, X_{i1}) + \mathbf{X}_i^\top\boldsymbol{\beta})\right].
 \]
 
 \begin{itemize}
-\item \textbf{Truth:} $\theta(a)$ is the mean of $\exp(-3 + f(a, X_{i1}) + \mathbf{X}_i^\top\boldsymbol{\beta})$
-over areas, with no $N_i$ weights. Coverage is reported against the \emph{population} truth, the mean over
+\item \textbf{Truth:} $\theta(a)$ is the mean of $N_i \exp(-3 + f(a, X_{i1}) + \mathbf{X}_i^\top\boldsymbol{\beta})$
+over areas (expected count per area, areas weighted equally). Coverage is reported against the \emph{population} truth, the mean over
 $2\times 10^6$ simulated areas drawn from the same covariate distribution (identical in every replicate),
 and also against each dataset's \emph{sample} truth (the mean over that dataset's own $400$ areas, as in
 Josey et al.\ 2023)
@@ -373,7 +374,7 @@ $A_i$ distribution (1st to 99th percentile about 4.6 to 15.4)
 $\Delta(Q_{99}, Q_{50})$ where $Q_{99}$ and $Q_{50}$ are the 99th and 50th percentiles
 of the simulated $A_i$ distribution. For the base model these correspond
 approximately to $Q_{50} \approx 10$ and $Q_{99} \approx 15.4$, representing
-the increase in the average depression rate on a severe wildfire day relative to a
+the increase in the expected number of depression cases per area on a severe wildfire day relative to a
 typical day.
 The percentiles are computed from the simulated $A_i$ values in each replicate so that
 the contrast automatically adapts to the exposure distribution under each scenario.
