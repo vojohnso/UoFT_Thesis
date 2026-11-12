@@ -1,5 +1,8 @@
-// Outcome model with the exposure observed (A for the oracle fit, Z for the naive fit) and a CAR spatial effect phi on the outcome
-// (sparse form, Joseph 2016); spline in the exposure. Same CAR prior as gcomp_latent_exposure_D_reduced_sparse.stan.
+// Outcome model with the exposure observed (A for the oracle fit, Z for the naive fit) and a 
+// CAR spatial effect phi on the outcome
+// (sparse form, Joseph 2016); spline in the exposure
+// Same CAR prior as gcomp_latent_exposure_D_reduced_sparse.stan
+
 functions {
   // log density of phi ~ CAR(precision tau * (D - alpha * W)), up to a constant (the sum of log D is dropped)
   real sparse_car_lpdf(vector phi, real tau, real alpha, array[,] int W_sparse, vector D_sparse, vector lambda, int n, int W_n) {

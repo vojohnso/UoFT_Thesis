@@ -4,9 +4,7 @@ source("gen_data.R")
 source("estimators.R")
 
 # Replicate r uses seed base_seed + r, so each replicate is reproducible on its own and the
-# result does not depend on the number of cores. The three scenarios use the same seeds, so they
-# share covariates, exposure, error and populations and differ only in the outcome shape.
-# The spatial effect is in the outcome (spatial_in = "outcome"); the other settings (areas, rho_A, error model) are the defaults in data.generate().
+# result does not depend on the number of cores - the three scenarios use the same seeds
 args <- commandArgs(trailingOnly = TRUE)
 n_reps <- if (length(args) >= 1) as.integer(args[1]) else 200
 n_cores <- if (length(args) >= 2) as.integer(args[2]) else max(1, detectCores() - 1)

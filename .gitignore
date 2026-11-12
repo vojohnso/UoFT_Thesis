@@ -12,3 +12,6 @@ Rplots.pdf
 *.log
 *.out
 *.synctex.gz
+
+# archived old models/scripts (kept on disk, not tracked)
+Simulation/stan/archive/

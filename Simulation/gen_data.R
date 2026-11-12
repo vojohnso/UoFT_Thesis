@@ -83,7 +83,7 @@ draw_populations <- function(n) pmax(round(exp(rnorm(n, mean = 8.5, sd = 1.2))),
 # sigma_A:  residual SD of true exposure; with gamma = +-0.75 the total SD is about 2.4, so A and Z are never negative in practice (no clipping)
 # rho_A:    spatial correlation in exposure CAR prior, 0 = spatially independent
 # R2_phi:   target proportion of Var(Ai) explained by spatial random effect phi
-# error_model: "A" (default, the model agreed with the supervisor): Zi | Ai, Di ~ N(bZ1*Ai + bZ2*Di, sigma_Z^2)
+# error_model: "A" (default): Zi | Ai, Di ~ N(bZ1*Ai + bZ2*Di, sigma_Z^2)
 #           "B" (earlier primary model, kept so archived results can be reproduced):
 #               Zi | Ai, Di ~ N(exp(beta1*Di)*Ai, exp(eta0 + eta1*Di))
 # bZ1:      Option A calibration slope on Ai; 1 = unattenuated
@@ -204,7 +204,7 @@ data.generate <- function(seed = 1006092577,
 # intervention sets A = a, and phi and Di do not enter the outcome. Both use the same calculation (avg_count) and
 # differ only in the areas it is applied to:
 #   true_erf:     this dataset's own areas (sample / finite-population truth, as in Josey et al. 2023)
-#   true_erf_pop: a very large simulated population of areas (the proposal's population estimand)
+#   true_erf_pop: a very large simulated population of areas (the population estimand)
 
 avg_count <- function(a, Xi1, Xi2, Xi3, Xi4, Ni, out_form, phi = 0) {
   mean(Ni * exp(-3 + erf_terms(a, Xi1, out_form) + cov_effects(Xi1, Xi2, Xi3, Xi4) + phi))

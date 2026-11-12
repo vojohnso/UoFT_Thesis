@@ -1,9 +1,8 @@
 library(ggplot2)
 
 # Reads output/bart/replicates_<scenario>.rds (from sim_replicates.R) and computes bias, RMSE and 95%
-# credible-interval coverage.
+# credible-interval coverage
 # Truth = population ERF (true_erf_pop); coverage against the per-replicate sample truth is also reported.
-# Optional upper limit on the reported nonlinear grid, report_max_nonlinear (15 = top of the grid, i.e. no limit).
 output_dir <- "output/bart"
 report_max_nonlinear <- 15
 
@@ -28,11 +27,12 @@ summ <- do.call(rbind, lapply(split(raw, list(raw$form, raw$method, raw$a), drop
              mc_se_cov = sqrt(cover * (1 - cover) / nrow(d)),
              coverage_vs_sample_truth = mean(d$lo <= d$true_sample & d$true_sample <= d$hi),
              ci_width = mean(d$hi - d$lo))
-}))
+  }))
 summ <- summ[order(summ$form, summ$method, summ$a), ]
 rownames(summ) <- NULL
 write.csv(summ, file.path(output_dir, "replicates_summary.csv"), row.names = FALSE)
 
+# Compute across different fruntional forms of the outcome 
 for (form in forms) {
   cat("\n", toupper(form), "\n")
   print(format(summ[summ$form == form, -1], digits = 3), row.names = FALSE)

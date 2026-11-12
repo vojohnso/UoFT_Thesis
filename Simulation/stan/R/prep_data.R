@@ -45,7 +45,7 @@ make_stan_data_latent <- function(sim, sigma_Z, a_grid = seq(5, 15, by = 1)) {
   )
 }
 
-# Adjacency matrix for the CAR spatial effect on the exposure. Areas are rows of the 20 x 20 rook grid used by
+# Adjacency matrix for the CAR spatial effect. Areas are the cells of the rook grid used by
 # data.generate(), in the same order (area_id). Stan gets the dense matrix.
 # The CAR dependence parameter rho is estimated in the Stan model (the simulation uses rho_A = 0.9).
 car_structure <- function(n_areas) {
@@ -59,16 +59,16 @@ make_stan_data_latent_D <- function(sim, bZ1 = 1, bZ2 = 0.5, sigma_Z = 1, a_grid
   c(make_stan_data_latent(sim, sigma_Z, a_grid), list(D = as.numeric(sim$Di), beta_Z1 = bZ1, beta_Z2 = bZ2))
 }
 
-# Estimated version: beta_Z1, beta_Z2 and sigma_Z are parameters with priors written in the Stan file
-# (beta_Z1 sets the scale of A and is not identified by the data; see the identifiability discussion in sim_versions.tex).
-# The model also has the CAR spatial effect on the exposure (rho estimated), so the neighbour structure is included.
+# Reduced version: the slope of Z on A is fixed at 1 (it sets the scale of A and is not identified by the data);
+# beta_Z2 and sigma_Z are parameters with priors written in the Stan file.
+# The neighbour structure is included for the CAR spatial effect (rho estimated).
 make_stan_data_latent_D_priors <- function(sim, a_grid = seq(5, 15, by = 1)) {
   d <- make_stan_data_latent(sim, sigma_Z = 1, a_grid = a_grid)
   d$sigma_Z <- NULL
   c(d, car_structure(nrow(sim)), list(D = as.numeric(sim$Di)))
 }
 
-# Spline version of the anchored model: the basis is built in Stan from the latent A, so only the knots are passed.
+# Spline version of the reduced model: the basis is built in Stan from the latent A, so only the knots are passed.
 # Boundary knots at the 5% / 95% quantiles of Z, interior knots at equal-spaced quantiles; df = number of basis columns.
 make_stan_data_latent_D_spline <- function(sim, a_grid = seq(5, 15, by = 1), df = 3) {
   d <- make_stan_data_latent_D_priors(sim, a_grid)

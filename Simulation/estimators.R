@@ -1,10 +1,6 @@
 library(BART)
 library(gtools)
 
-# ============================================================
-# BART g-computation
-# ============================================================
-
 # Fits nonparametric Bayesian g-computation using BART as the outcome model.
 # Outcome modelled on log(Yi/Ni) which is the log event rate per person.
 # Predictions are exponentiated to recover the rate and multiplied by Ni to get expected counts:
@@ -81,10 +77,7 @@ bart_gcomp <- function(data,
        bart_fit = bart_fit, model_label = model_label, a_grid = a_grid)
 }
 
-# ============================================================
 # Plotting and comparison
-# ============================================================
-
 # Three-curve ERF plot: oracle, naive, and true ERF with 95% credible bands
 make_erf_plot <- function(oracle, naive, true_theta, a_grid, title) {
   plot_df <- rbind(

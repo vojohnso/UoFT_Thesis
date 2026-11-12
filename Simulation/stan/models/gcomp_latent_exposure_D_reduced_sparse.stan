@@ -1,4 +1,4 @@
-// Reduced latent exposure model (beta_Z1 = 1 => fewer parameters to estimate) with the CAR prior in the sparse form 
+// Reduced latent exposure model (beta_Z1 (SLOPE) = 1 => fewer parameters to estimate) with the CAR prior in the sparse form 
 // Latent exposure with CAR effect phi on the outcome; error model Z = A + beta_Z2 * D + noise,
 // sigma_Z prior set by the data (sigma_Z_mean, sigma_Z_sd): wild guess normal(0, 5) or oracle normal(1, 0.3). Initialise A = Z in R.
 

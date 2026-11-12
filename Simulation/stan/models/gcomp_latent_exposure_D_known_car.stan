@@ -1,5 +1,9 @@
-// Latent exposure A, error model Z = beta_Z1 * A + beta_Z2 * D + noise with KNOWN error parameters, plus the CAR spatial effect phi on the outcome
-// (sparse form, Joseph 2016; same prior as gcomp_latent_exposure_D_reduced_sparse.stan). Best case: exact error structure, right spatial model. Initialise A = Z in R.
+// Latent exposure A, error model Z = beta_Z1 * A + beta_Z2 * D + noise with KNOWN error parameters, 
+// plus the CAR spatial effect phi on the outcome
+// (sparse form, Joseph 2016; same prior as gcomp_latent_exposure_D_reduced_sparse.stan)
+// Best case: exact error structure, right spatial model. Initialise A = Z in R
+
+
 functions {
   // log density of phi ~ CAR(precision tau * (D - alpha * W)), up to a constant (the sum of log D is dropped)
   real sparse_car_lpdf(vector phi, real tau, real alpha, array[,] int W_sparse, vector D_sparse, vector lambda, int n, int W_n) {
