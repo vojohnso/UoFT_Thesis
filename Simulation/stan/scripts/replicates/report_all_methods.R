@@ -22,8 +22,8 @@ runs <- lapply(files, readRDS)
 
 raw <- do.call(rbind, lapply(runs, function(r) r$summary[, c("rep", "method", "a", "true", "est", "lo", "hi")]))
 dg_cols <- c(
-  "rep", "method", "iter", "warmup", "div", "max_rhat", "rhat_key", "worst_param",
-  "geweke_frac_flag", "geweke_max_abs_z"
+  "rep", "method", "iter", "div", "max_rhat", "rhat_key", "worst_param",
+  "geweke_max_abs_z", "geweke_frac_flag"
 )
 dg <- do.call(rbind, lapply(runs, function(r) {
   d <- r$diag

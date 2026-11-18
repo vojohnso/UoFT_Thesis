@@ -18,19 +18,10 @@ source("stan/R/compile_model.R")
 source("stan/R/diagnostics.R")
 
 # Settings
-# Optional arguments: first and last replicate (default 1 100), and "tight" to run only the tight-priors method
+# Optional arguments: first and last replicate (default 1 100)
 args <- commandArgs(trailingOnly = TRUE)
 first <- if (length(args) >= 1) as.integer(args[1]) else 1L
 last <- if (length(args) >= 2) as.integer(args[2]) else 100L
-tight_only <- length(args) >= 3 && args[3] == "tight" # run only the tight-priors method
-
-# Iterations and warm-up per method, from the tuning run (stan/scripts/checks/tune_iterations.R).
-# The two methods with a loose sigma_Z prior converge slowly and need the longer run.
-iter_default <- c(iter = 8000, warmup = 4000)
-iter_long <- c(iter = 16000, warmup = 8000)
-iter_for <- function(method) {
-  if (method %in% c("reduced, sigma_Z ~ normal(1, 0.3)", "reduced, sigma_Z wild guess")) iter_long else iter_default
-}
 
 base_seed <- 1006092577
 n_areas <- 100
@@ -40,7 +31,7 @@ a_grid <- seq(5, 15, by = 1)
 set.seed(base_seed)
 rep_seeds <- sample.int(.Machine$integer.max, 100)
 
-# Models and truth
+# Models
 exposure_mod <- compile_model("gcomp_known_exposure_car")
 known_mod <- compile_model("gcomp_latent_exposure_D_known_car")
 red_mod <- compile_model("gcomp_latent_exposure_D_reduced_sparse")
@@ -49,41 +40,33 @@ tight_mod <- compile_model("gcomp_latent_exposure_D_reduced_sparse_tight")
 # Population truth of the ERF, the same in every replicate
 pop_truth <- true_erf_pop(a_grid, "linear", spatial_in = "outcome", n_areas = n_areas)
 
-# Where this run saves its results
-out_file <- sprintf("output/stan/latent_D_car/main_reps_%d_%d%s.rds", first, last, if (tight_only) "_tight" else "")
+out_file <- sprintf("output/stan/latent_D_car/main_reps_%d_%d.rds", first, last)
 
-
-# Helpers
-# Fit one Stan model; keep the posterior draws of theta and the convergence summaries
-fit_it <- function(mod, dat, seed, init = "random", method) {
-  it <- iter_for(method)
+# Fit one Stan model (warm-up is half the iterations); keep theta and the convergence summary
+fit_it <- function(mod, dat, seed, init = "random", iter = 8000) {
   fit <- sampling(
-    mod, data = dat, chains = 4, iter = it[["iter"]], warmup = it[["warmup"]], cores = 4,
+    mod, data = dat, chains = 4, iter = iter, warmup = iter / 2, cores = 4,
     seed = seed, refresh = 0, init = init, control = list(adapt_delta = 0.9)
   )
   list(
     theta = rstan::extract(fit, "theta")$theta,
-    conv = convergence_summary(fit),
-    iter = it[["iter"]], warmup = it[["warmup"]]
+    conv = data.frame(iter = iter, convergence_summary(fit))
   )
 }
 
-# Run all six methods on replicate r
+# Run all seven methods on replicate r
 run_one <- function(r) {
   s <- rep_seeds[r]
-
-  # Simulate one dataset
   sim <- data.generate(
     seed = s, n_areas = n_areas, out_form = "linear", spatial_in = "outcome",
     bZ1 = 1, bZ2 = 0.5, sigma_Z = 1
   )
   car <- car_structure(nrow(sim))
 
-  # Stan data for the latent models
-  d_known <- c(
-    make_stan_data_latent_D(sim, bZ1 = 1, bZ2 = 0.5, sigma_Z = 1, a_grid = a_grid),
-    car
-  )
+  # Stan data
+  d_oracle <- c(make_stan_data(sim, "oracle", df = 1, a_grid = a_grid), car)
+  d_naive <- c(make_stan_data(sim, "naive", df = 1, a_grid = a_grid), car)
+  d_known <- c(make_stan_data_latent_D(sim, bZ1 = 1, bZ2 = 0.5, sigma_Z = 1, a_grid = a_grid), car)
   d_red <- make_stan_data_latent_D_priors(sim, a_grid)
 
   # Starting values: A starts at the observed surrogate Z
@@ -95,38 +78,24 @@ run_one <- function(r) {
       phi = rep(0, nrow(sim)), sigma_phi = 1, rho = 0.5
     )
   }
-  init_red <- function(sz) function() c(init_known(), list(beta_Z2 = 0, sigma_Z = sz))
+  init_red <- function() c(init_known(), list(beta_Z2 = 0, sigma_Z = 1))
 
-  fit_specs <- list(
-    "oracle" = function() {
-      d <- c(make_stan_data(sim, "oracle", df = 1, a_grid = a_grid), car)
-      fit_it(exposure_mod, d, s, method = "oracle")
-    },
-    "naive" = function() {
-      d <- c(make_stan_data(sim, "naive", df = 1, a_grid = a_grid), car)
-      fit_it(exposure_mod, d, s, method = "naive")
-    },
-    "latent, known errors" = function() {
-      fit_it(known_mod, d_known, s, init_known, method = "latent, known errors")
-    },
-    "reduced, sigma_Z fixed at 1" = function() {
-      d <- c(d_red, list(sigma_Z_mean = 1, sigma_Z_sd = 0.001))
-      fit_it(red_mod, d, s, init_red(1), method = "reduced, sigma_Z fixed at 1")
-    },
-    "reduced, sigma_Z ~ normal(1, 0.3)" = function() {
-      d <- c(d_red, list(sigma_Z_mean = 1, sigma_Z_sd = 0.3))
-      fit_it(red_mod, d, s, init_red(1), method = "reduced, sigma_Z ~ normal(1, 0.3)")
-    },
-    "reduced, sigma_Z wild guess" = function() {
-      d <- c(d_red, list(sigma_Z_mean = 0, sigma_Z_sd = 5))
-      fit_it(red_mod, d, s, init_red(1), method = "reduced, sigma_Z wild guess")
-    },
-    "reduced, tight priors on everything" = function() {
-      fit_it(tight_mod, d_red, s, init_red(1), method = "reduced, tight priors on everything")
-    }
+  # The two methods with a loose sigma_Z prior converge slowly, so they get more iterations
+  fits <- list(
+    "oracle" = fit_it(exposure_mod, d_oracle, s),
+    "naive" = fit_it(exposure_mod, d_naive, s),
+    "latent, known errors" = fit_it(known_mod, d_known, s, init_known),
+    "reduced, sigma_Z fixed at 1" = fit_it(
+      red_mod, c(d_red, list(sigma_Z_mean = 1, sigma_Z_sd = 0.001)), s, init_red
+    ),
+    "reduced, sigma_Z ~ normal(1, 0.3)" = fit_it(
+      red_mod, c(d_red, list(sigma_Z_mean = 1, sigma_Z_sd = 0.3)), s, init_red, iter = 16000
+    ),
+    "reduced, sigma_Z wild guess" = fit_it(
+      red_mod, c(d_red, list(sigma_Z_mean = 0, sigma_Z_sd = 5)), s, init_red, iter = 16000
+    ),
+    "reduced, tight priors on everything" = fit_it(tight_mod, d_red, s, init_red)
   )
-  to_run <- if (tight_only) "reduced, tight priors on everything" else names(fit_specs)
-  fits <- lapply(fit_specs[to_run], function(f) f())
 
   list(
     # Posterior mean and 95% interval of theta(a) at each grid value, per method
@@ -140,14 +109,9 @@ run_one <- function(r) {
         hi = apply(th, 2, quantile, 0.975)
       )
     })),
-    # Convergence per method: divergences, R-hat (all parameters and the key ones), Geweke
+    # Convergence of each fit
     diag = do.call(rbind, lapply(names(fits), function(m) {
-      cv <- fits[[m]]$conv
-      data.frame(
-        rep = r, method = m, iter = fits[[m]]$iter, warmup = fits[[m]]$warmup,
-        div = cv$div, max_rhat = cv$rhat_all, rhat_key = cv$rhat_key, worst_param = cv$worst_param,
-        geweke_frac_flag = cv$geweke_frac_flag, geweke_max_abs_z = cv$geweke_max_abs_z
-      )
+      data.frame(rep = r, method = m, fits[[m]]$conv)
     }))
   )
 }
@@ -157,19 +121,13 @@ run_one <- function(r) {
 res <- list()
 t0 <- Sys.time()
 for (r in first:last) {
-  res[[as.character(r)]] <- run_one(r)
-
+  res[[length(res) + 1]] <- run_one(r)
   saveRDS(
     list(
       summary = do.call(rbind, lapply(res, `[[`, "summary")),
-      diag = do.call(rbind, lapply(res, `[[`, "diag")),
-      n_iter = rbind(default = iter_default, long = iter_long)
+      diag = do.call(rbind, lapply(res, `[[`, "diag"))
     ),
     out_file
   )
-
-  cat(
-    "replicate", r, "(", r - first + 1, "of", last - first + 1, ") done,",
-    round(difftime(Sys.time(), t0, units = "mins"), 1), "min elapsed\n"
-  )
+  cat("replicate", r, "done,", round(difftime(Sys.time(), t0, units = "mins"), 1), "min elapsed\n")
 }

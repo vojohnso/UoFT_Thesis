@@ -98,7 +98,7 @@ for (m in names(methods)) {
       rep = r, method = m, iter = iter, warmup = warmup, minutes = round(minutes, 1),
       divergences = conv$div,
       rhat_key = round(conv$rhat_key, 3), worst_param = conv$worst_param,
-      rhat_all = round(conv$rhat_all, 3),
+      rhat_all = round(conv$max_rhat, 3),
       geweke_frac_flag = round(conv$geweke_frac_flag, 3),
       geweke_max_abs_z = round(conv$geweke_max_abs_z, 2),
       theta_a5 = round(theta[a_grid == 5]), theta_a10 = round(theta[a_grid == 10]),

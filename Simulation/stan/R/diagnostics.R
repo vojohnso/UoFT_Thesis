@@ -32,11 +32,10 @@ convergence_summary <- function(fit) {
 
   list(
     div = sum(sapply(sp, function(m) sum(m[, "divergent__"]))),
-    rhat_all = max(rh, na.rm = TRUE),
+    max_rhat = max(rh, na.rm = TRUE),
     rhat_key = max(rh_key, na.rm = TRUE),
     worst_param = names(rh_key)[which.max(rh_key)],
     geweke_max_abs_z = max(abs(z)),
-    geweke_frac_flag = mean(abs(z) > 1.96),
-    n_z = length(z)
+    geweke_frac_flag = mean(abs(z) > 1.96)
   )
 }
