@@ -2,10 +2,6 @@
 #
 # sigma_Z is fixed at a chosen value (third argument, default 0.1) through the prior
 # normal(value, 0.001). The true sigma_Z is 1. Same 20 seeds as the other reduced studies.
-# Output files are tagged with the value.
-#
-# Output: output/stan/latent_D_car/latent_D_reduced_sens_sigmaZ_<value>.rds (+ a summary csv)
-# Usage:  Rscript stan/scripts/replicates/sim_latent_D_reduced_sens_sigmaZ.R [n_reps] [n_iter] [sigma_Z value]
 
 library(rstan)
 source("gen_data.R")
@@ -14,6 +10,7 @@ source("stan/R/compile_model.R")
 
 
 # Settings
+# Optional arguments: number of replicates, iterations, and the sigma_Z value to fix
 args <- commandArgs(trailingOnly = TRUE)
 n_reps <- if (length(args) >= 1) as.integer(args[1]) else 20
 n_iter <- if (length(args) >= 2) as.integer(args[2]) else 2000

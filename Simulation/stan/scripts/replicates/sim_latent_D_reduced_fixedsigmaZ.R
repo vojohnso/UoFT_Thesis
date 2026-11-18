@@ -1,8 +1,5 @@
 # Diagnostic: the reduced latent model with sigma_Z fixed at its true value (1) through a very
 # tight prior, normal(1, 0.001). Same 20 seeds as sim_latent_D_reduced_replicates.R.
-#
-# Output: output/stan/latent_D_car/latent_D_reduced_fixedsigmaZ_replicates.rds (+ a summary csv)
-# Usage:  Rscript stan/scripts/replicates/sim_latent_D_reduced_fixedsigmaZ.R [n_reps] [n_iter]
 
 library(rstan)
 source("gen_data.R")
@@ -11,6 +8,7 @@ source("stan/R/compile_model.R")
 
 
 # Settings
+# Optional arguments: number of replicates and iterations
 args <- commandArgs(trailingOnly = TRUE)
 n_reps <- if (length(args) >= 1) as.integer(args[1]) else 20
 n_iter <- if (length(args) >= 2) as.integer(args[2]) else 2000

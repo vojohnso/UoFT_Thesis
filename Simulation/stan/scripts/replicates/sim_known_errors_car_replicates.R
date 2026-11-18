@@ -3,9 +3,6 @@
 #
 # Same 20 seeds, data and truth as sim_latent_D_reduced_replicates.R, so the rows can be compared
 # with the known-errors fit that has no spatial term.
-#
-# Output: output/stan/latent_D_car/known_errors_car_replicates.rds
-# Usage:  Rscript stan/scripts/replicates/sim_known_errors_car_replicates.R [n_reps] [n_iter]
 
 library(rstan)
 source("gen_data.R")
@@ -14,6 +11,7 @@ source("stan/R/compile_model.R")
 
 
 # Settings
+# Optional arguments: number of replicates and iterations
 args <- commandArgs(trailingOnly = TRUE)
 n_reps <- if (length(args) >= 1) as.integer(args[1]) else 20
 n_iter <- if (length(args) >= 2) as.integer(args[2]) else 2000

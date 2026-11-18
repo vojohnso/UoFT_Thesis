@@ -7,8 +7,6 @@
 #
 # sigma_A has the lower bound 0.5, and the half-Cauchy priors are truncated at 0, so their
 # densities are renormalised (doubled for the half-Cauchy).
-#
-# Writes output/stan/checks/prior_vs_truth.png and prior_vs_truth.csv
 
 library(ggplot2)
 source("gen_data.R")

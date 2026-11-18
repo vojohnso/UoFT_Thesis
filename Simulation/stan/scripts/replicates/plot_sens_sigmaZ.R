@@ -1,9 +1,5 @@
 # Sensitivity plot: bias, RMSE and coverage of the reduced latent model against the
 # assumed (fixed) sigma_Z. The true sigma_Z is 1.
-#
-# Reads  output/stan/latent_D_car/tables/sensitivity_sigmaZ.csv
-#        (one row per assumed value, summarised from the sens_sigmaZ runs)
-# Writes output/stan/latent_D_car/plots/sensitivity_sigmaZ.png
 
 library(ggplot2)
 d <- read.csv("output/stan/latent_D_car/tables/sensitivity_sigmaZ.csv")

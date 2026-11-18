@@ -9,9 +9,6 @@
 # Same replicate seeds as the other single-method scripts. Fits per replicate:
 #   oracle (known exposure), naive (Z instead of A), latent with known error parameters,
 #   and the reduced model with each sigma_Z prior.
-#
-# Output: output/stan/latent_D_car/latent_D_reduced_replicates.rds (+ a summary csv)
-# Usage:  Rscript stan/scripts/replicates/sim_latent_D_reduced_replicates.R [n_reps] [n_iter]
 
 library(rstan)
 source("gen_data.R")
@@ -20,6 +17,7 @@ source("stan/R/compile_model.R")
 
 
 # Settings
+# Optional arguments: number of replicates and iterations
 args <- commandArgs(trailingOnly = TRUE)
 n_reps <- if (length(args) >= 1) as.integer(args[1]) else 20
 n_iter <- if (length(args) >= 2) as.integer(args[2]) else 2000

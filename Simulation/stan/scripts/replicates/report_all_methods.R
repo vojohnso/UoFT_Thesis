@@ -1,21 +1,35 @@
 # One aggregate table and one set of plots for all methods of the main study (sim_main.R):
-# linear truth, 100 areas, spatial effect in the outcome. Methods, all with the CAR spatial term:
-#   oracle, naive, latent with known errors, reduced latent model with sigma_Z fixed at 1,
-#   with sigma_Z ~ normal(1, 0.3), with the wild guess normal(0, 5),
-#   and with tight priors on every parameter.
-#
-# Table: output/stan/latent_D_car/tables/aggregate_all_methods.csv
-# Plots: output/stan/latent_D_car/plots/all_methods_{curves,bias,coverage}.png
+# linear truth, 100 areas, spatial effect in the outcome
+# Methods, all with the CAR spatial term include (1) oracle, (2) naive, (3) latent with known errors,
+# (4) reduced model with sigma_Z fixed at 1, (5) reduced model with sigma_Z ~ normal(1, 0.3),
+# (6) reduced model with a wild guess on sigma_Z ~ normal(0, 5) and (7) tight priors on everything
 
 library(ggplot2)
 d <- "output/stan/latent_D_car"
 
-files <- list.files(d, pattern = "^main_reps_.*\\.rds$", full.names = TRUE)
+# Optional arguments: which main_reps files to use (comma-separated, default all) and the folder to save to
+args <- commandArgs(trailingOnly = TRUE)
+files <- if (length(args) >= 1) {
+  file.path(d, strsplit(args[1], ",")[[1]])
+} else {
+  list.files(d, pattern = "^main_reps_.*\\.rds$", full.names = TRUE)
+}
+out_dir <- if (length(args) >= 2) args[2] else d
+dir.create(file.path(out_dir, "tables"), recursive = TRUE, showWarnings = FALSE)
+dir.create(file.path(out_dir, "plots"), recursive = TRUE, showWarnings = FALSE)
 if (length(files) == 0) stop("no main_reps_*.rds files in ", d, " (run sim_main.R first)")
 runs <- lapply(files, readRDS)
 
 raw <- do.call(rbind, lapply(runs, function(r) r$summary[, c("rep", "method", "a", "true", "est", "lo", "hi")]))
-dg <- do.call(rbind, lapply(runs, function(r) r$diag[, c("rep", "method", "div", "max_rhat")]))
+dg_cols <- c(
+  "rep", "method", "iter", "warmup", "div", "max_rhat", "rhat_key", "worst_param",
+  "geweke_frac_flag", "geweke_max_abs_z"
+)
+dg <- do.call(rbind, lapply(runs, function(r) {
+  d <- r$diag
+  for (v in setdiff(dg_cols, names(d))) d[[v]] <- NA # older runs did not store these
+  d[, dg_cols]
+}))
 
 # Method order used in the table and plots
 lv <- c(
@@ -51,7 +65,9 @@ dgt <- do.call(rbind, lapply(split(dg, dg$method), function(x) {
     method = x$method[1],
     reps_with_divergence = sum(x$div > 0),
     worst_rhat = max(x$max_rhat),
-    median_rhat = median(x$max_rhat)
+    median_rhat = median(x$max_rhat),
+    fits_rhat_key_above_1.05 = sum(x$rhat_key > 1.05, na.rm = TRUE),
+    mean_geweke_frac_flag = mean(x$geweke_frac_flag, na.rm = TRUE)
   )
 }))
 
@@ -64,15 +80,19 @@ out <- merge(merge(nrep, tab, by = "method"), dgt, by = "method")
 out <- out[order(match(out$method, lv)), ]
 out$mc_se_coverage <- sqrt(out$coverage * (1 - out$coverage) / out$n_reps)
 
-dir.create(file.path(d, "tables"), showWarnings = FALSE)
-dir.create(file.path(d, "plots"), showWarnings = FALSE)
-write.csv(out, file.path(d, "tables", "aggregate_all_methods.csv"), row.names = FALSE)
+dir.create(file.path(out_dir, "tables"), showWarnings = FALSE)
+dir.create(file.path(out_dir, "plots"), showWarnings = FALSE)
+write.csv(out, file.path(out_dir, "tables", "aggregate_all_methods.csv"), row.names = FALSE)
 print(out, digits = 3, row.names = FALSE)
+
+# Every fit (replicate x method) with its convergence diagnostics
+dg <- dg[order(match(dg$method, lv), dg$rep), ]
+write.csv(dg, file.path(out_dir, "tables", "per_fit_diagnostics.csv"), row.names = FALSE)
 
 
 # Plots
 by_a$method <- factor(by_a$method, levels = lv)
-n <- paste(range(out$n_reps), collapse = "-") # replicate count for the titles
+n <- paste(unique(range(out$n_reps)), collapse = "-") # replicate count for the titles
 
 # Estimated curves: one line per replicate, with the mean of the estimates and the truth
 p1 <- ggplot(raw, aes(a, est, group = rep)) +
@@ -113,6 +133,6 @@ p3 <- ggplot(by_a, aes(a, coverage, colour = method)) +
   ) +
   theme_bw(base_size = 10)
 
-ggsave(file.path(d, "plots", "all_methods_curves.png"), p1, width = 10, height = 14, dpi = 110)
-ggsave(file.path(d, "plots", "all_methods_bias.png"), p2, width = 9.5, height = 4.8, dpi = 120)
-ggsave(file.path(d, "plots", "all_methods_coverage.png"), p3, width = 9.5, height = 4.8, dpi = 120)
+ggsave(file.path(out_dir, "plots", "all_methods_curves.png"), p1, width = 10, height = 14, dpi = 110)
+ggsave(file.path(out_dir, "plots", "all_methods_bias.png"), p2, width = 9.5, height = 4.8, dpi = 120)
+ggsave(file.path(out_dir, "plots", "all_methods_coverage.png"), p3, width = 9.5, height = 4.8, dpi = 120)

@@ -1,10 +1,6 @@
 # Aggregate table and plots for the reduced-model study with wide priors
 # (sim_latent_D_reduced_replicates.R, 20 replicates): oracle, naive, known errors, and the
 # reduced latent model with the oracle and wild-guess sigma_Z priors.
-#
-# Table: output/stan/latent_D_car/tables/aggregate_reduced_20reps.csv (all methods)
-# Plots: output/stan/latent_D_car/plots/reduced_{curves,bias,coverage}.png
-#        (known errors left out of the plots: its curves reach the millions)
 
 library(ggplot2)
 dir_in <- "output/stan/latent_D_car"
