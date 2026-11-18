@@ -24,7 +24,7 @@ p1 <- ggplot(bias, aes(sigma_Z, y, colour = series, linetype = series == "averag
   labs(
     x = "assumed sigma_Z (fixed)", y = "relative bias (%)", colour = NULL,
     title = "Bias against the assumed sigma_Z",
-    subtitle = "Truth sigma_Z = 1 (dotted); 20 replicates, linear truth, 100 areas"
+    subtitle = paste0("Truth sigma_Z = 1 (dotted); ", d$n_reps[1], " replicates, linear truth, 100 areas")
   ) +
   theme_bw(base_size = 11)
 
