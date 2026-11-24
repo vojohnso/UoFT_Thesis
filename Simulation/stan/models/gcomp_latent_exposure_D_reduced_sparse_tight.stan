@@ -70,15 +70,15 @@ parameters {
 }
 
 model {
-  beta0 ~ normal(-4, 0.1);                 // true -4, depends on sigma_Z
-  beta_A ~ normal(0.1, 0.1);                // true 0.1, depends on sigma_Z
-  beta_X ~ normal([-0.5, -0.25, 0.25, 0.5]', 0.1);                // true (-0.5, -0.25, 0.25, 0.5), depends on sigma_Z
+  beta0 ~ normal(-4, 0.1);   // true -4, depends on sigma_Z
+  beta_A ~ normal(0.1, 0.1);   // true 0.1, depends on sigma_Z
+  beta_X ~ normal([-0.5, -0.25, 0.25, 0.5]', 0.1); // true (-0.5, -0.25, 0.25, 0.5), depends on sigma_Z
   gamma0 ~ normal(10, 0.1);           // true 10, identified
-  gamma_A ~ normal([-0.75, 0.75, -0.75, 0.75]', 0.1);               // true (-0.75, 0.75, -0.75, 0.75), identified
-  sigma_A ~ normal(1.5, 0.1);                // true 1.5, not identified apart from sigma_Z
-  sigma_phi ~ normal(0.446, 0.05);              // true 0.446 at 100 areas, weakly identified
-  rho ~ beta(90, 10);                      // true 0.9, weakly identified
-  beta_Z2 ~ normal(0.5, 0.1);               // true 0.5, identified
+  gamma_A ~ normal([-0.75, 0.75, -0.75, 0.75]', 0.1);  // true (-0.75, 0.75, -0.75, 0.75), identified
+  sigma_A ~ normal(1.5, 0.1);    // true 1.5, not identified apart from sigma_Z
+  sigma_phi ~ normal(0.446, 0.05);      // true 0.446 at 100 areas, weakly identified
+  rho ~ beta(90, 10);       // true 0.9, weakly identified
+  beta_Z2 ~ normal(0.5, 0.1);   // true 0.5, identified
   sigma_Z ~ normal(1, 0.05);  // true 1, not identified apart from sigma_A
 
   phi ~ sparse_car(inv_square(sigma_phi), rho, W_sparse, D_sparse, lambda, N, W_n);

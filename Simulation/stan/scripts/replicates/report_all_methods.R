@@ -1,13 +1,13 @@
-# One aggregate table and one set of plots for all methods of the main study (sim_main.R):
-# linear truth, 100 areas, spatial effect in the outcome
-# Methods, all with the CAR spatial term include (1) oracle, (2) naive, (3) latent with known errors,
-# (4) reduced model with sigma_Z fixed at 1, (5) reduced model with sigma_Z ~ normal(1, 0.3),
-# (6) reduced model with a wild guess on sigma_Z ~ normal(0, 5) and (7) tight priors on everything
+# One aggregate table and one set of plots for all methods of a study, from its saved replicate files:
+#   main study (sim_main.R): linear truth, 100 areas, spatial effect in the outcome, 7 methods
+#   spline study (sim_spline_replicates.R): quadratic truth, spline exposure effect, 5 methods
+# The study is detected from the method names.
 
 library(ggplot2)
 d <- "output/stan/latent_D_car"
 
-# Optional arguments: which main_reps files to use (comma-separated, default all) and the folder to save to
+# Optional arguments: which replicate files to use (comma-separated, default all main_reps_*; for the
+# spline study give the spline_reps_*.rds names) and the folder to save to
 args <- commandArgs(trailingOnly = TRUE)
 files <- if (length(args) >= 1) {
   file.path(d, strsplit(args[1], ",")[[1]])
@@ -17,7 +17,7 @@ files <- if (length(args) >= 1) {
 out_dir <- if (length(args) >= 2) args[2] else d
 dir.create(file.path(out_dir, "tables"), recursive = TRUE, showWarnings = FALSE)
 dir.create(file.path(out_dir, "plots"), recursive = TRUE, showWarnings = FALSE)
-if (length(files) == 0) stop("no main_reps_*.rds files in ", d, " (run sim_main.R first)")
+if (length(files) == 0) stop("no replicate files found in ", d)
 runs <- lapply(files, readRDS)
 
 raw <- do.call(rbind, lapply(runs, function(r) r$summary[, c("rep", "method", "a", "true", "est", "lo", "hi")]))
@@ -32,12 +32,16 @@ dg <- do.call(rbind, lapply(runs, function(r) {
 }))
 
 # Method order used in the table and plots
-lv <- c(
+lv_all <- c(
   "oracle", "naive", "latent, known errors", "reduced, sigma_Z fixed at 1",
   "reduced, tight priors on everything",
-  "reduced, sigma_Z ~ normal(1, 0.3)", "reduced, sigma_Z wild guess"
+  "reduced, sigma_Z ~ normal(1, 0.3)", "reduced, sigma_Z wild guess",
+  "oracle spline", "naive spline", "reduced spline, sigma_Z fixed at 1",
+  "reduced spline, sigma_Z ~ normal(1, 0.3)", "reduced spline, sigma_Z wild guess"
 )
-stopifnot(all(raw$method %in% lv))
+stopifnot(all(raw$method %in% lv_all))
+lv <- lv_all[lv_all %in% raw$method]
+study <- if (any(grepl("spline", raw$method))) "quadratic truth, splines" else "linear truth"
 raw$method <- factor(raw$method, levels = lv)
 
 
@@ -103,7 +107,7 @@ p1 <- ggplot(raw, aes(a, est, group = rep)) +
   coord_cartesian(ylim = c(0, 3500)) +
   labs(
     x = "exposure a", y = "expected counts per area",
-    title = paste0("Estimated curves, all methods (", n, " replicates)"),
+    title = paste0("Estimated curves, all methods, ", study, " (", n, " replicates)"),
     subtitle = "Red = truth, blue dashed = mean of estimates, grey = replicates (y-axis cut at 3500)"
   ) +
   theme_bw(base_size = 10)
@@ -115,7 +119,7 @@ p2 <- ggplot(by_a, aes(a, rel_bias_pct, colour = method)) +
   geom_point(size = 1) +
   labs(
     x = "exposure a", y = "relative bias (%)",
-    title = paste0("Relative bias, all methods (", n, " replicates)"),
+    title = paste0("Relative bias, all methods, ", study, " (", n, " replicates)"),
     colour = NULL
   ) +
   theme_bw(base_size = 10)
@@ -128,7 +132,7 @@ p3 <- ggplot(by_a, aes(a, coverage, colour = method)) +
   ylim(0, 1) +
   labs(
     x = "exposure a", y = "coverage of the 95% interval",
-    title = paste0("Coverage, all methods (", n, " replicates, dashed = 0.95)"),
+    title = paste0("Coverage, all methods, ", study, " (", n, " replicates, dashed = 0.95)"),
     colour = NULL
   ) +
   theme_bw(base_size = 10)

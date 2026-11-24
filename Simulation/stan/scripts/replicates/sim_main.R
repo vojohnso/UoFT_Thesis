@@ -40,6 +40,7 @@ tight_mod <- compile_model("gcomp_latent_exposure_D_reduced_sparse_tight")
 # Population truth of the ERF, the same in every replicate
 pop_truth <- true_erf_pop(a_grid, "linear", spatial_in = "outcome", n_areas = n_areas)
 
+dir.create("output/stan/latent_D_car", recursive = TRUE, showWarnings = FALSE)
 out_file <- sprintf("output/stan/latent_D_car/main_reps_%d_%d.rds", first, last)
 
 # Fit one Stan model (warm-up is half the iterations); keep theta and the convergence summary

@@ -1,8 +1,8 @@
 # Convergence diagnostics for one stanfit: R-hat (maximum and which parameter) and
-# Geweke z-scores, per chain, for the scalar parameters and the estimand theta.
+# Geweke z-scores, per chain, for the scalar parameters and the estimand theta
 #
 # Geweke compares the first 10% and last 50% of each chain. Under convergence the
-# z-score is approximately standard normal, so |z| >= 1.96 flags non-stationarity.
+# z-score is approximately standard normal, so |z| >= 1.96 flags non-stationarity
 
 library(coda)
 
@@ -25,7 +25,7 @@ convergence_summary <- function(fit) {
   # R-hat for all parameters, and for the key parameters only
   sm <- summary(fit)$summary
   rh <- sm[, "Rhat"]
-  rh_key <- rh[grepl(paste0("^(", paste(pars, collapse = "|"), ")(\\[|$)"), names(rh))]
+  rh_key <- rh[sub("\\[.*", "", names(rh)) %in% pars]
 
   # Divergent transitions after warm-up
   sp <- get_sampler_params(fit, inc_warmup = FALSE)
