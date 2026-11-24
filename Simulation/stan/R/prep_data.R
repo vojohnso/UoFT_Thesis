@@ -68,6 +68,14 @@ make_stan_data_latent_D_priors <- function(sim, a_grid = seq(5, 15, by = 1)) {
   c(d, car_structure(nrow(sim)), list(D = as.numeric(sim$Di)))
 }
 
+# Berkson latent model: Z, X, outcomes and the adjacency matrix; no D (the Berkson surrogate has no D shift).
+# The prior for sigma_N (sigma_N_mean, sigma_N_sd) is added by the caller
+make_stan_data_berkson <- function(sim, a_grid = seq(5, 15, by = 1)) {
+  d <- make_stan_data_latent(sim, sigma_Z = 1, a_grid = a_grid)
+  d$sigma_Z <- NULL
+  c(d, car_structure(nrow(sim)))
+}
+
 # Spline version of the reduced model: the basis is built in Stan from the latent A, so only the knots are passed.
 # Boundary knots at the 5% / 95% quantiles of Z, interior knots at equal-spaced quantiles; df = number of basis columns.
 make_stan_data_latent_D_spline <- function(sim, a_grid = seq(5, 15, by = 1), df = 3) {

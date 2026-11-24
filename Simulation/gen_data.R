@@ -89,6 +89,12 @@ draw_populations <- function(n) pmax(round(exp(rnorm(n, mean = 8.5, sd = 1.2))),
 # bZ1:      Option A calibration slope on Ai; 1 = unattenuated
 # bZ2:      Option A shift per SD of Di (Di is mean 0, variance 1): the surrogate reads high in high-Di areas
 # sigma_Z:  Option A SD of the (homoscedastic) error
+# error_type: "classical" (default): Zi = A-based surrogate with noise as above (error_model "A" only).
+#           "berkson": A = Z + N with N ~ N(0, sigma_N^2) independent of Z. Ai is drawn exactly as before (same marginal and
+#               same random stream), then Zi is drawn from Zi | Ai, which gives Zi ~ N(mean of A, sigma_A^2 - sigma_N^2) and
+#               Ai = Zi + Ni. Di plays no part in a Berkson Z (bZ1, bZ2 and sigma_Z are ignored). sigma_N = sigma_Z = 1 gives the
+#               same error SD Var(Z - A) as the classical default, so the two error types are compared at equal error size
+# sigma_N:  Berkson error SD (must be below sigma_A)
 # eta0, eta1, beta1: Option B only. exp(eta0) is the error variance at Di = 0; eta1 is the Di-slope of the log
 #           variance (eta1 = 0 is Josey's homoscedastic Assumption 2); exp(beta1*Di) is the attenuation slope
 # out_form: ERF functional form: linear / quadratic / nonlinear
@@ -108,6 +114,8 @@ data.generate <- function(seed = 1006092577,
                           bZ1 = 1,
                           bZ2 = 0.5,
                           sigma_Z = 1,
+                          error_type = c("classical", "berkson"),
+                          sigma_N = 1,
                           eta0 = -0.5,
                           eta1 = 0.5,
                           beta1 = -0.1,
@@ -117,6 +125,9 @@ data.generate <- function(seed = 1006092577,
   out_form <- match.arg(out_form)
   spatial_in <- match.arg(spatial_in)
   error_model <- match.arg(error_model)
+  error_type <- match.arg(error_type)
+  if (error_type == "berkson" && error_model != "A") stop("error_type = 'berkson' needs error_model = 'A'")
+  if (error_type == "berkson" && sigma_N >= sigma_A) stop("sigma_N must be below sigma_A")
   I <- n_areas
 
   # Step 1: Area-level covariates
@@ -150,7 +161,14 @@ data.generate <- function(seed = 1006092577,
   Ai <- rnorm(I, mean = mu_A + if (spatial_in == "exposure") phi else 0, sd = sigma_A)
 
   # Step 5: Error-prone surrogate
-  if (error_model == "A") {
+  if (error_type == "berkson") {
+    # Berkson: A = Z + N, N independent of Z. Given A, Z is normal with the mean shrunk toward the mean of A:
+    # Z | A ~ N(m + (1 - sN^2/sA^2)(A - m), sN^2 (sA^2 - sN^2)/sA^2), m = mean of A given Xi (and phi)
+    m_A <- mu_A + if (spatial_in == "exposure") phi else 0
+    atten_i <- rep(1, I)
+    Zi <- rnorm(I, mean = m_A + (1 - sigma_N^2 / sigma_A^2) * (Ai - m_A),
+                sd = sqrt(sigma_N^2 * (sigma_A^2 - sigma_N^2) / sigma_A^2))
+  } else if (error_model == "A") {
     # Option A: Zi | Ai, Di ~ N(bZ1*Ai + bZ2*Di, sigma_Z^2); Di shifts the mean of the surrogate
     atten_i <- rep(bZ1, I)
     Zi <- rnorm(I, mean = bZ1 * Ai + bZ2 * Di, sd = sigma_Z)
@@ -188,7 +206,8 @@ data.generate <- function(seed = 1006092577,
     phi = phi,
     sigma2_phi = sigma2_phi,
     spatial_in = spatial_in,
-    out_form = out_form
+    out_form = out_form,
+    error_type = error_type
   )
 }
 
